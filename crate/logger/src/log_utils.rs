@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 static LOG_INIT: Once = Once::new();
 

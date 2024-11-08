@@ -124,7 +124,7 @@ repos:
     rev: v1.0.32
     hooks:
       # - id: nightly-cargo-format
-      - id: cargo-format
+      - id: stable-cargo-format
       # - id: dprint-toml-fix
       # - id: cargo-upgrade
       # - id: cargo-update
@@ -136,7 +136,7 @@ repos:
       - id: clippy-autofix-all-targets
       - id: clippy-all-targets-all-features
       - id: clippy-all-targets
-      - id: cargo-format # in last du to clippy fixes
+      - id: stable-cargo-format # in last du to clippy fixes
 
   - repo: https://github.com/EmbarkStudios/cargo-deny
     rev: 0.16.1 # choose your preferred tag
