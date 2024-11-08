@@ -1,0 +1,38 @@
+[workspace]
+members = ["crate/logger"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.71.0"
+authors = [
+  "Bruno Grieder <bruno.grieder@cosmian.com>",
+  "Emmanuel Coste <emmanuel.coste@cosmian.com>",
+]
+license = "BUSL-1.1"
+license-file = "LICENSE"
+repository = "https://github.com/Cosmian/http_client_server"
+keywords = ["server", "utils", "cosmian"]
+categories = ["security"]
+
+[profile.release]
+lto = true
+strip = true
+
+[profile.dev]
+strip = "debuginfo"
+incremental = false
+
+# proc-macros and build-scripts
+[profile.dev.build-override]
+strip = "debuginfo"
+incremental = false
+
+# external dependencies
+[profile.dev.package."*"]
+opt-level = 0
+
+[workspace.dependencies]
+tracing-subscriber = { version = "0.3", default-features = false }
+tracing = "0.1"

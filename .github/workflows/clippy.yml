@@ -1,0 +1,33 @@
+---
+name: Cargo lint
+
+on:
+  push:
+  workflow_call:
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
+  lint:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # Ensure all code has been formatted with rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check --color always
+
+      - name: Static analysis
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Static analysis
+        run: cargo test --workspace --all-targets --all-features
