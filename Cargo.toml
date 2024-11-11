@@ -1,5 +1,8 @@
 [workspace]
-members = ["crate/logger"]
+members = [
+  "crate/logger",
+  "crate/http_client",
+]
 resolver = "2"
 
 [workspace.package]
