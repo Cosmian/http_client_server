@@ -90,10 +90,7 @@ impl HttpClient {
             );
         }
         if let Some(database_secret) = http_conf.database_secret.clone() {
-            headers.insert(
-                "KmsDatabaseSecret",
-                HeaderValue::from_str(&database_secret)?,
-            );
+            headers.insert("DatabaseSecret", HeaderValue::from_str(&database_secret)?);
         }
 
         // We deal with 4 scenarios:
