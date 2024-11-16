@@ -1,5 +1,5 @@
 [package]
-name = "cosmian_http_client"
+name = "cosmian_config_utils"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -15,14 +15,9 @@ doctest = false
 [features]
 
 [dependencies]
-actix-web = { version = "4.9.0", features = ["macros"] }
-oauth2 = { version = "4.4", features = ["reqwest"] }
-reqwest = { version = "0.11", features = ["default", "json", "native-tls"] }
-rustls = { version = "0.21", features = ["dangerous_configuration"] }
+base64 = "0.21"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.41", features = ["full"] }
+tracing = { workspace = true }
 url = "2.5"
-webpki-roots = "0.22"
-x509-cert = "0.2.5"
