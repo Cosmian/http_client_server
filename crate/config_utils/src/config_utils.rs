@@ -2,7 +2,7 @@ use std::{
     env,
     fmt::Debug,
     fs::{self, File},
-    io::BufReader,
+    io::{BufReader, Read},
     path::PathBuf,
 };
 
@@ -130,9 +130,10 @@ pub trait ConfigUtils: Default {
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
+        trace!("Saving configuration to {conf_path:?}");
         fs::write(
             conf_path,
-            serde_json::to_string_pretty(&self)
+            toml::to_string_pretty(&self)
                 .with_context(|| format!("Unable to serialize default configuration {self:?}"))?,
         )
         .with_context(|| {
@@ -155,7 +156,13 @@ pub trait ConfigUtils: Default {
             // Configuration file exists, read and deserialize it
             let file = File::open(conf_path)
                 .with_context(|| format!("Unable to read configuration file {conf_path:?}"))?;
-            serde_json::from_reader(BufReader::new(file))
+            let mut buf_reader = BufReader::new(file);
+            let mut contents = String::new();
+            buf_reader
+                .read_to_string(&mut contents)
+                .with_context(|| format!("Unable to read configuration file {conf_path:?}"))?;
+            trace!("Configuration file contents: {contents}");
+            toml::from_str(&contents)
                 .with_context(|| format!("Error while parsing configuration file {conf_path:?}"))?
         } else {
             // Configuration file doesn't exist, create it with default values and serialize
