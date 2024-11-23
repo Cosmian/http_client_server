@@ -1,6 +1,11 @@
-use std::sync::Once;
+use std::{
+    env::{set_var, var},
+    sync::Once,
+};
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{
+    layer::SubscriberExt, registry, reload, util::SubscriberInitExt, EnvFilter,
+};
 
 static LOG_INIT: Once = Once::new();
 
@@ -8,17 +13,19 @@ static LOG_INIT: Once = Once::new();
 ///
 /// Will panic if we cannot set global tracing subscriber
 pub fn log_init(default_value: Option<&str>) {
-    LOG_INIT.call_once(|| unsafe {
-        if let Ok(current_value) = std::env::var("RUST_LOG") {
-            std::env::set_var("RUST_LOG", current_value);
-            std::env::set_var("RUST_BACKTRACE", "full");
-            tracing_setup();
-        } else if let Some(input_value) = default_value {
-            std::env::set_var("RUST_LOG", input_value);
-            std::env::set_var("RUST_BACKTRACE", "full");
-            tracing_setup();
-        }
-    });
+    if default_value.is_some() || var("RUST_LOG").is_ok() {
+        LOG_INIT.call_once(|| unsafe {
+            if let Ok(current_value) = var("RUST_LOG") {
+                set_var("RUST_LOG", current_value);
+                set_var("RUST_BACKTRACE", "full");
+                tracing_setup();
+            } else if let Some(input_value) = default_value {
+                set_var("RUST_LOG", input_value);
+                set_var("RUST_BACKTRACE", "full");
+                tracing_setup();
+            }
+        });
+    }
 }
 
 /// # Panics
@@ -36,11 +43,7 @@ fn tracing_setup() {
         .with_ansi(true)
         .compact();
 
-    let (filter, _reload_handle) =
-        tracing_subscriber::reload::Layer::new(EnvFilter::from_default_env());
+    let (filter, _reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(format)
-        .init();
+    registry().with(filter).with(format).init();
 }

@@ -1,8 +1,7 @@
 use std::{
     env,
     fmt::Debug,
-    fs::{self, File},
-    io::{BufReader, Read},
+    fs::{self},
     path::PathBuf,
 };
 
@@ -126,24 +125,40 @@ pub fn location(
 }
 
 pub trait ConfigUtils: Default {
-    fn save(&self, conf_path: &PathBuf) -> Result<(), ConfigUtilsError>
+    fn to_toml(&self, conf_path: &PathBuf) -> Result<(), ConfigUtilsError>
+    where
+        Self: serde::ser::Serialize + std::fmt::Debug,
+    {
+        self.save(conf_path, false)
+    }
+
+    fn to_json(&self, conf_path: &PathBuf) -> Result<(), ConfigUtilsError>
+    where
+        Self: serde::ser::Serialize + std::fmt::Debug,
+    {
+        self.save(conf_path, true)
+    }
+
+    fn save(&self, conf_path: &PathBuf, json: bool) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
         trace!("Saving configuration to {conf_path:?}");
-        fs::write(
-            conf_path,
+        let content = if json {
+            serde_json::to_string_pretty(&self)
+                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?
+        } else {
             toml::to_string_pretty(&self)
-                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?,
-        )
-        .with_context(|| {
+                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?
+        };
+        fs::write(conf_path, &content).with_context(|| {
             format!("Unable to write default configuration to file {conf_path:?}\n{self:?}")
         })?;
 
         Ok(())
     }
 
-    fn load(conf_path: &PathBuf) -> Result<Self, ConfigUtilsError>
+    fn load(conf_path: &PathBuf, json: bool) -> Result<Self, ConfigUtilsError>
     where
         Self: Sized,
         Self: Serialize,
@@ -154,31 +169,56 @@ pub trait ConfigUtils: Default {
         // configuration if none exists
         let conf = if conf_path.exists() {
             // Configuration file exists, read and deserialize it
-            let file = File::open(conf_path)
+            let content = fs::read_to_string(conf_path)
                 .with_context(|| format!("Unable to read configuration file {conf_path:?}"))?;
-            let mut buf_reader = BufReader::new(file);
-            let mut contents = String::new();
-            buf_reader
-                .read_to_string(&mut contents)
-                .with_context(|| format!("Unable to read configuration file {conf_path:?}"))?;
-            trace!("Configuration file contents: {contents}");
-            toml::from_str(&contents)
-                .with_context(|| format!("Error while parsing configuration file {conf_path:?}"))?
+            trace!("Configuration file contents: {content}");
+            if json {
+                serde_json::from_str(&content).with_context(|| {
+                    format!("Error while parsing configuration file {conf_path:?}")
+                })?
+            } else {
+                toml::from_str(&content).with_context(|| {
+                    format!("Error while parsing configuration file {conf_path:?}")
+                })?
+            }
         } else {
             // Configuration file doesn't exist, create it with default values and serialize
             // it
-            let parent = conf_path
-                .parent()
-                .with_context(|| format!("Unable to get parent directory of {conf_path:?}"))?;
-            fs::create_dir_all(parent).with_context(|| {
-                format!("Unable to create directory for configuration file {parent:?}")
-            })?;
+            if let Some(parent) = conf_path.parent() {
+                fs::create_dir_all(parent).with_context(|| {
+                    format!("Unable to create directory for configuration file {parent:?}")
+                })?;
+            }
 
             let default_conf = Self::default();
-            default_conf.save(conf_path)?;
+            if json {
+                default_conf.to_json(conf_path)?;
+            } else {
+                default_conf.to_toml(conf_path)?;
+            }
             default_conf
         };
 
         Ok(conf)
+    }
+
+    fn from_toml(conf_path: &PathBuf) -> Result<Self, ConfigUtilsError>
+    where
+        Self: Sized,
+        Self: Serialize,
+        Self: DeserializeOwned,
+        Self: Debug,
+    {
+        Self::load(conf_path, false)
+    }
+
+    fn from_json(conf_path: &PathBuf) -> Result<Self, ConfigUtilsError>
+    where
+        Self: Sized,
+        Self: Serialize,
+        Self: DeserializeOwned,
+        Self: Debug,
+    {
+        Self::load(conf_path, true)
     }
 }
