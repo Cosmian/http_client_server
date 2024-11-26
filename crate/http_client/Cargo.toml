@@ -1,0 +1,28 @@
+[package]
+name = "cosmian_http_client"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+# doc test linking as a separate binary is extremely slow
+# and is not needed for internal lib
+doctest = false
+
+[features]
+
+[dependencies]
+actix-web = { version = "4.9.0", features = ["macros"] }
+oauth2 = { version = "4.4", features = ["reqwest"] }
+reqwest = { version = "0.11", features = ["default", "json", "native-tls"] }
+rustls = { version = "0.21", features = ["dangerous_configuration"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { version = "1.41", features = ["full"] }
+url = "2.5"
+webpki-roots = "0.22"
+x509-cert = "0.2.5"
