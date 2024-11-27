@@ -61,3 +61,5 @@ mod certificate_verifier;
 mod error;
 mod http_client;
 mod login;
+pub mod authentication;
+pub mod tests;
