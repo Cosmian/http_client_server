@@ -48,13 +48,15 @@ impl SessionStore for MockSessionStore {
     ) -> Result<SessionKey, UpdateError> {
         key_to_index(&session_key)
             .map_err(UpdateError::Other)
-            .and_then(|i| match self.data.borrow_mut().get_mut(i) {
-                Some(data) => {
-                    *data = session_state;
+            .and_then(|i| {
+                self.data.borrow_mut().get_mut(i).map_or_else(
+                    || Err(UpdateError::Other(Error::msg("No such key"))),
+                    |data| {
+                        *data = session_state;
 
-                    Ok(session_key)
-                }
-                None => Err(UpdateError::Other(Error::msg("No such key"))),
+                        Ok(session_key)
+                    },
+                )
             })
     }
 
