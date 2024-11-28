@@ -5,7 +5,6 @@ use actix_session::storage::{LoadError, SaveError, SessionKey, SessionStore, Upd
 use actix_web::cookie::time::Duration;
 use anyhow::Error;
 
-
 /// A simple in-memory session store for testing purposes.
 #[derive(Default)]
 pub struct MockSessionStore {

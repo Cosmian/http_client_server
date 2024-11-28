@@ -57,9 +57,9 @@ pub use error::HttpClientError;
 pub use http_client::{HttpClient, HttpClientConfig};
 pub use login::{LoginState, Oauth2LoginConfig};
 
+pub mod authentication;
 mod certificate_verifier;
 mod error;
 mod http_client;
 mod login;
-pub mod authentication;
 pub mod tests;
