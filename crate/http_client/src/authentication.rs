@@ -9,7 +9,9 @@
 //! ```rust,no_run
 //! use actix_web::{get, post, HttpRequest};
 //! use actix_web::web::Path;
-//! use cosmian_http_client::authentication::{Authenticated, Session};
+//! use cosmian_http_client::authentication::Authenticated;
+//! #[cfg(feature = "session")]
+//! use cosmian_http_client::authentication::session::Session;
 //!
 //! #[post("/login/<id>")]
 //! async fn login(id: Path<String>, request: HttpRequest) -> String {
