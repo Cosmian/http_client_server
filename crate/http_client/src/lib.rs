@@ -62,4 +62,5 @@ mod certificate_verifier;
 mod error;
 mod http_client;
 mod login;
+#[cfg(test)]
 pub mod tests;

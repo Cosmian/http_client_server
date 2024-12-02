@@ -7,11 +7,11 @@
 //!
 //! # Examples
 //! ```rust,no_run
+//! # #[cfg(feature = "session")]
+//! # mod doc {
 //! use actix_web::{get, post, HttpRequest};
 //! use actix_web::web::Path;
-//! use cosmian_http_client::authentication::Authenticated;
-//! #[cfg(feature = "session")]
-//! use cosmian_http_client::authentication::session::Session;
+//! use cosmian_http_client::authentication::{Authenticated, session::Session};
 //!
 //! #[post("/login/<id>")]
 //! async fn login(id: Path<String>, request: HttpRequest) -> String {
@@ -26,6 +26,7 @@
 //! async fn hello(session: Authenticated<Session<String>>) -> String {
 //!     format!("Hello, {}!", session.data())
 //! }
+//! # }
 
 #[cfg(feature = "session")]
 pub mod session;

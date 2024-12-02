@@ -26,7 +26,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check --color always
 
-      - name: Static analysis
+      - name: Tests all targets all features
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Static analysis
@@ -34,4 +34,3 @@ jobs:
 
       - name: Test doc
         run: cargo test --workspace --all-features --doc
-        continue-on-error: true
