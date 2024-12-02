@@ -6,20 +6,20 @@ use std::{
 };
 
 use reqwest::{
-    header::{HeaderMap, HeaderValue},
     Client, ClientBuilder, Identity,
+    header::{HeaderMap, HeaderValue},
 };
-use rustls::{client::WebPkiVerifier, Certificate};
+use rustls::{Certificate, client::WebPkiVerifier};
 use serde::{Deserialize, Serialize};
 use x509_cert::{
-    der::{DecodePem, Encode},
     Certificate as X509Certificate,
+    der::{DecodePem, Encode},
 };
 
 use crate::{
-    certificate_verifier::{LeafCertificateVerifier, NoVerifier},
-    error::{result::HttpClientResultHelper, HttpClientError},
     Oauth2LoginConfig,
+    certificate_verifier::{LeafCertificateVerifier, NoVerifier},
+    error::{HttpClientError, result::HttpClientResultHelper},
 };
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]

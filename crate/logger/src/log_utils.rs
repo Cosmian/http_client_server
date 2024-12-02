@@ -4,7 +4,7 @@ use std::{
 };
 
 use tracing_subscriber::{
-    layer::SubscriberExt, registry, reload, util::SubscriberInitExt, EnvFilter,
+    EnvFilter, layer::SubscriberExt, registry, reload, util::SubscriberInitExt,
 };
 
 static LOG_INIT: Once = Once::new();

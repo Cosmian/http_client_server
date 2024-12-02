@@ -31,9 +31,9 @@
 #[cfg(feature = "session")]
 pub mod session;
 
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 
-use actix_web::{dev::Payload, FromRequest, HttpRequest};
+use actix_web::{FromRequest, HttpRequest, dev::Payload};
 use derive_more::{Deref, DerefMut};
 
 /// The `Authenticate` trait is used to authenticate a request.
