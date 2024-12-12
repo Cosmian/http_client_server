@@ -11,18 +11,18 @@
 //! use actix_web::web::Path;
 //! use cosmian_http_client::authentication::{Authenticated, Authenticate, EitherExt, session::Session};
 //!
-//! struct Admin;
+//! struct Admin(String);
 //!
 //! impl Authenticate for Admin {
-//!    type Output = str;
+//!    type Output = String;
 //!    type Error = Error;
 //!
 //!    fn authenticate(request: &HttpRequest) -> Result<Self, Self::Error> {
-//!         Ok(Self)
+//!         Ok(Self("admin".to_owned()))
 //!    }
 //!
 //!    fn data(&self) -> &Self::Output {
-//!         "admin"
+//!         &self.0
 //!    }
 //! }
 //!
