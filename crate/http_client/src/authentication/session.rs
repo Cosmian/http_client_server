@@ -105,19 +105,13 @@ impl<T: Serialize + DeserializeOwned> Session<T> {
     pub const fn is_stopped(&self) -> bool {
         self.identity.is_none()
     }
-
-    /// Get data attached to the session.
-    #[must_use]
-    pub const fn data(&self) -> &T {
-        &self.data
-    }
 }
 
 impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
-    type Output = Self;
+    type Output = T;
     type Error = SessionError;
 
-    fn authenticate(request: &HttpRequest) -> Result<Self::Output, Self::Error> {
+    fn authenticate(request: &HttpRequest) -> Result<Self, Self::Error> {
         request
             .get_identity()
             .map_err(Into::into)
@@ -129,6 +123,11 @@ impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
                     identity: Some(identity),
                 })
             })
+    }
+
+    #[must_use]
+    fn data(&self) -> &Self::Output {
+        &self.data
     }
 }
 

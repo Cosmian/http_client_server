@@ -11,7 +11,7 @@
 //! # mod doc {
 //! use actix_web::{get, post, HttpRequest};
 //! use actix_web::web::Path;
-//! use cosmian_http_client::authentication::{Authenticated, session::Session};
+//! use cosmian_http_client::authentication::{Authenticated, Authenticate, session::Session};
 //!
 //! #[post("/login/<id>")]
 //! async fn login(id: Path<String>, request: HttpRequest) -> String {
@@ -27,7 +27,9 @@
 //!     format!("Hello, {}!", session.data())
 //! }
 //! # }
+//! ```
 
+pub mod either;
 #[cfg(feature = "session")]
 pub mod session;
 
@@ -36,11 +38,13 @@ use std::future::{Ready, ready};
 use actix_web::{FromRequest, HttpRequest, dev::Payload};
 use derive_more::{Deref, DerefMut};
 
+pub use either::EitherExt;
+
 /// The `Authenticate` trait is used to authenticate a request.
 ///
 /// The `Output` associated type maybe be used to extract any useful information about the
 /// authenticated request.
-pub trait Authenticate {
+pub trait Authenticate: Sized {
     /// Any information about the authenticated request.
     type Output;
     type Error;
@@ -49,16 +53,19 @@ pub trait Authenticate {
     ///
     /// # Errors
     /// Returns an error if the request could not be authenticated somehow.
-    fn authenticate(request: &HttpRequest) -> Result<Self::Output, Self::Error>;
+    fn authenticate(request: &HttpRequest) -> Result<Self, Self::Error>;
+
+    /// Extract the data from the authenticated request.
+    fn data(&self) -> &Self::Output;
 }
 
 /// An extractor for an authenticated request.
 #[derive(Deref, DerefMut)]
-pub struct Authenticated<T: Authenticate>(T::Output);
+pub struct Authenticated<T: Authenticate>(T);
 
 impl<T: Authenticate> Authenticated<T> {
     /// Unwrap into the authenticator output.
-    pub fn into_inner(self) -> T::Output {
+    pub fn into_inner(self) -> T {
         self.0
     }
 }
