@@ -6,13 +6,12 @@ use std::{
 };
 
 use serde::{Serialize, de::DeserializeOwned};
-#[cfg(target_os = "linux")]
-use tracing::info;
-use tracing::trace;
+use tracing::{info, trace};
 
-#[cfg(target_os = "linux")]
-use crate::config_bail;
-use crate::error::{ConfigUtilsError, result::ConfigUtilsResultHelper};
+use crate::{
+    config_bail,
+    error::{ConfigUtilsError, result::ConfigUtilsResultHelper},
+};
 
 /// Returns the path to the current user's home folder.
 ///
@@ -25,31 +24,25 @@ use crate::error::{ConfigUtilsError, result::ConfigUtilsResultHelper};
 ///
 /// Returns `None` if the home folder cannot be determined.
 pub fn get_home_folder() -> Option<PathBuf> {
-    // Check for the existence of the HOME environment variable on Linux and macOS
-    if let Some(home) = env::var_os("HOME") {
-        return Some(PathBuf::from(home));
-    }
-    // Check for the existence of the USERPROFILE environment variable on Windows
-    else if let Some(profile) = env::var_os("USERPROFILE") {
-        return Some(PathBuf::from(profile));
-    }
-    // Check for the existence of the HOMEDRIVE and HOMEPATH environment variables on Windows
-    else if let (Some(hdrive), Some(hpath)) = (env::var_os("HOMEDRIVE"), env::var_os("HOMEPATH"))
-    {
-        return Some(PathBuf::from(hdrive).join(hpath));
-    }
-    // If none of the above environment variables exist, the home folder cannot be
-    // determined
-    None
+    env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .or_else(|| {
+            env::var_os("HOMEDRIVE").and_then(|hdrive| {
+                env::var_os("HOMEPATH").map(|hpath| {
+                    let mut path = PathBuf::from(hdrive);
+                    path.push(hpath);
+                    path.into_os_string()
+                })
+            })
+        })
+        .map(PathBuf::from)
 }
 
 /// Returns the default configuration path
 ///  or an error if the path cannot be determined
 pub fn get_default_conf_path(default_local_path: &str) -> Result<PathBuf, ConfigUtilsError> {
     get_home_folder()
-        .ok_or_else(|| {
-            ConfigUtilsError::NotSupported("unable to determine the home folder".to_owned())
-        })
+        .ok_or_else(|| ConfigUtilsError::NotFound("unable to determine the home folder".to_owned()))
         .map(|home| home.join(default_local_path))
 }
 
@@ -61,20 +54,20 @@ pub fn location(
 ) -> Result<PathBuf, ConfigUtilsError> {
     trace!("Getting configuration file location");
     // Obtain the configuration file path from:
-    // - the `--conf` arg
+    // - the `conf` arg
     // - the environment variable corresponding to `env_var_name`
     // - default to a pre-determined path
     if let Some(conf_path) = conf {
         if !conf_path.exists() {
-            return Err(ConfigUtilsError::NotSupported(format!(
-                "Configuration file {conf_path:?} from CLI arg does not exist"
+            return Err(ConfigUtilsError::NotFound(format!(
+                "Configuration file {conf_path:?} does not exist"
             )));
         }
         return Ok(conf_path);
     } else if let Ok(conf_path) = env::var(env_var_name).map(PathBuf::from) {
         // Error if the specified file does not exist
         if !conf_path.exists() {
-            return Err(ConfigUtilsError::NotSupported(format!(
+            return Err(ConfigUtilsError::NotFound(format!(
                 "Configuration file {conf_path:?} specified in {env_var_name} environment \
                  variable does not exist"
             )));
@@ -85,10 +78,6 @@ pub fn location(
     let user_conf_path = get_default_conf_path(conf_default_local_path);
     trace!("User conf path is at: {user_conf_path:?}");
 
-    #[cfg(not(target_os = "linux"))]
-    return user_conf_path;
-
-    #[cfg(target_os = "linux")]
     match user_conf_path {
         Err(_) => {
             // no user home, this may be the system attempting a load
@@ -109,13 +98,13 @@ pub fn location(
                 let default_system_path = PathBuf::from(conf_default_system_path);
                 if default_system_path.exists() {
                     info!(
-                        "Linux user conf path is at: {user_conf:?} but is empty, using \
+                        "User conf path is at: {user_conf:?} but is empty, using \
                          {conf_default_system_path} instead"
                     );
                     return Ok(default_system_path);
                 }
                 info!(
-                    "Linux user conf path is at: {user_conf:?} and will be initialized with a \
+                    "User conf path is at: {user_conf:?} and will be initialized with a \
                      default value"
                 );
             }
@@ -125,21 +114,21 @@ pub fn location(
 }
 
 pub trait ConfigUtils: Default {
-    fn to_toml(&self, conf_path: &PathBuf) -> Result<(), ConfigUtilsError>
+    fn to_toml(&self, conf_path: &str) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
         self.save(conf_path, false)
     }
 
-    fn to_json(&self, conf_path: &PathBuf) -> Result<(), ConfigUtilsError>
+    fn to_json(&self, conf_path: &str) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
         self.save(conf_path, true)
     }
 
-    fn save(&self, conf_path: &PathBuf, json: bool) -> Result<(), ConfigUtilsError>
+    fn save(&self, conf_path: &str, json: bool) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
@@ -158,7 +147,7 @@ pub trait ConfigUtils: Default {
         Ok(())
     }
 
-    fn load(conf_path: &PathBuf, json: bool) -> Result<Self, ConfigUtilsError>
+    fn load(conf_path: &str, json: bool) -> Result<Self, ConfigUtilsError>
     where
         Self: Sized,
         Self: Serialize,
@@ -167,7 +156,8 @@ pub trait ConfigUtils: Default {
     {
         // Deserialize the configuration from the file, or create a default
         // configuration if none exists
-        let conf = if conf_path.exists() {
+        let conf_path_buf = PathBuf::from(conf_path);
+        let conf = if conf_path_buf.exists() {
             // Configuration file exists, read and deserialize it
             let content = fs::read_to_string(conf_path)
                 .with_context(|| format!("Unable to read configuration file {conf_path:?}"))?;
@@ -184,7 +174,7 @@ pub trait ConfigUtils: Default {
         } else {
             // Configuration file doesn't exist, create it with default values and serialize
             // it
-            if let Some(parent) = conf_path.parent() {
+            if let Some(parent) = conf_path_buf.parent() {
                 fs::create_dir_all(parent).with_context(|| {
                     format!("Unable to create directory for configuration file {parent:?}")
                 })?;
@@ -202,7 +192,7 @@ pub trait ConfigUtils: Default {
         Ok(conf)
     }
 
-    fn from_toml(conf_path: &PathBuf) -> Result<Self, ConfigUtilsError>
+    fn from_toml(conf_path: &str) -> Result<Self, ConfigUtilsError>
     where
         Self: Sized,
         Self: Serialize,
@@ -212,7 +202,7 @@ pub trait ConfigUtils: Default {
         Self::load(conf_path, false)
     }
 
-    fn from_json(conf_path: &PathBuf) -> Result<Self, ConfigUtilsError>
+    fn from_json(conf_path: &str) -> Result<Self, ConfigUtilsError>
     where
         Self: Sized,
         Self: Serialize,
