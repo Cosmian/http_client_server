@@ -113,32 +113,37 @@ pub fn location(
     }
 }
 
+/// Supported file formats
+pub enum SupportedFile {
+    Toml,
+    Json,
+}
+
 pub trait ConfigUtils: Default {
     fn to_toml(&self, conf_path: &str) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
-        self.save(conf_path, false)
+        self.save(conf_path, SupportedFile::Toml)
     }
 
     fn to_json(&self, conf_path: &str) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
-        self.save(conf_path, true)
+        self.save(conf_path, SupportedFile::Json)
     }
 
-    fn save(&self, conf_path: &str, json: bool) -> Result<(), ConfigUtilsError>
+    fn save(&self, conf_path: &str, supported_file: SupportedFile) -> Result<(), ConfigUtilsError>
     where
         Self: serde::ser::Serialize + std::fmt::Debug,
     {
         trace!("Saving configuration to {conf_path:?}");
-        let content = if json {
-            serde_json::to_string_pretty(&self)
-                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?
-        } else {
-            toml::to_string_pretty(&self)
-                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?
+        let content = match supported_file {
+            SupportedFile::Json => serde_json::to_string_pretty(&self)
+                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?,
+            SupportedFile::Toml => toml::to_string_pretty(&self)
+                .with_context(|| format!("Unable to serialize default configuration {self:?}"))?,
         };
         fs::write(conf_path, &content).with_context(|| {
             format!("Unable to write default configuration to file {conf_path:?}\n{self:?}")
