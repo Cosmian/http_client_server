@@ -3,3 +3,6 @@ pub use error::ConfigUtilsError;
 
 mod config_utils;
 mod error;
+
+#[cfg(test)]
+pub mod tests;

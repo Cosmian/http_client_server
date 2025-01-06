@@ -18,7 +18,7 @@ doctest = false
 base64 = "0.21"
 serde = { workspace = true }
 serde_json = { workspace = true }
-toml = "0.8"
 thiserror = { workspace = true }
+toml = "0.8"
 tracing = { workspace = true }
 url = "2.5"

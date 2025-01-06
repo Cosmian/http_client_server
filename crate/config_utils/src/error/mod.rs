@@ -15,8 +15,8 @@ pub enum ConfigUtilsError {
     #[error("{0}")]
     Default(String),
 
-    #[error("Not Supported: {0}")]
-    NotSupported(String),
+    #[error("Not found: {0}")]
+    NotFound(String),
 
     #[error("Unexpected Error: {0}")]
     UnexpectedError(String),

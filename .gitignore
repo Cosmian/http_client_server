@@ -1,3 +1,4 @@
+/.cargo_check
 /target
 /env
 .DS_Store
