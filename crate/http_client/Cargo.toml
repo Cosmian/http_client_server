@@ -26,11 +26,11 @@ rustls = { version = "0.21", features = ["dangerous_configuration"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.41", features = ["full"] }
+tokio = { version = "1.43", features = ["full"] }
 url = "2.5"
 webpki-roots = "0.22"
 x509-cert = "0.2.5"
 
 [dev-dependencies]
 actix-http = "3.6.0"
-anyhow = "1.0.93"
+anyhow = "1.0.95"
