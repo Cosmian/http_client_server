@@ -2,7 +2,6 @@ use std::{
     fs::File,
     io::{BufReader, Read},
     sync::Arc,
-    time::Duration,
 };
 
 use reqwest::{
@@ -141,7 +140,6 @@ impl HttpClient {
         Ok(Self {
             client: builder
                 .default_headers(headers)
-                .tcp_keepalive(Duration::from_secs(60))
                 .build()
                 .context("Reqwest client builder")?,
             server_url,
