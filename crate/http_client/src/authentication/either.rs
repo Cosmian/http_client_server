@@ -104,7 +104,7 @@ mod tests {
     async fn get_data(
         authentication: Either<Authenticated<A>, Authenticated<B>>,
     ) -> impl Responder {
-        HttpResponse::Ok().body(authentication.data().to_string())
+        HttpResponse::Ok().body(authentication.data().to_owned())
     }
 
     async fn create_app()

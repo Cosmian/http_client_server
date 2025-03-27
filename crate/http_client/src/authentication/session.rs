@@ -125,7 +125,6 @@ impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
             })
     }
 
-    #[must_use]
     fn data(&self) -> &Self::Output {
         &self.data
     }
