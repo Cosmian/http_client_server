@@ -99,13 +99,8 @@ allow = [
   "Zlib",
   "BSD-2-Clause",
   "BSD-3-Clause",
-  "Unicode-DFS-2016",
   "BUSL-1.1",
-  "GPL-3.0",
-  "AGPL-3.0",
-  "CC0-1.0",
   "MPL-2.0",
-  "OpenSSL",
   "Unicode-3.0",
 ]
 # The confidence threshold for detecting a license from license text.
