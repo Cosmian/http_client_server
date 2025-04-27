@@ -1,4 +1,4 @@
-use crate::{LoggerError, otlp};
+use crate::{otlp, LoggerError};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
-use tracing_subscriber::{Layer, reload};
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::{reload, Layer};
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 
@@ -26,6 +26,7 @@ pub struct TracingConfig {
     /// Do not log to stdout
     pub no_log_to_stdout: bool,
 
+    #[cfg(not(target_os = "windows"))]
     /// log to syslog
     pub log_to_syslog: bool,
 
@@ -108,6 +109,7 @@ impl Drop for OtelGuard {
 ///            enable_metering: true,
 ///        }),
 ///        no_log_to_stdout: false,
+///        #[cfg(not(target_os = "windows"))]
 ///        log_to_syslog: true,
 ///        rust_log: Some("trace".to_string()),
 ///    };
@@ -215,6 +217,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
         layers.push(fmt_layer.boxed());
     }
 
+    #[cfg(not(target_os = "windows"))]
     if config.log_to_syslog {
         let identity = Cow::Owned(CString::new(config.service_name.clone())?);
         let (options, facility) = Default::default();

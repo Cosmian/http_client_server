@@ -1,4 +1,4 @@
-use cosmian_logger::{TelemetryConfig, TracingConfig, tracing_init};
+use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
 use tracing::span;
 use tracing_core::Level;
 
@@ -37,6 +37,7 @@ Make sure that Jaeger is started and running on localhost:4317:
             enable_metering: true,
         }),
         no_log_to_stdout: false,
+        #[cfg(not(target_os = "windows"))]
         log_to_syslog: true,
         rust_log: Some("trace".to_string()),
     };

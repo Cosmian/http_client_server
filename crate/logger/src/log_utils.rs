@@ -1,4 +1,4 @@
-use crate::{TracingConfig, tracing_init};
+use crate::{tracing_init, TracingConfig};
 
 /// Initializing the stdout logger only.
 /// (no open telemetry nor syslog)
@@ -14,6 +14,7 @@ pub fn log_init(rust_log: Option<&str>) {
         otlp: None,
         service_name: "".to_string(),
         no_log_to_stdout: false,
+        #[cfg(not(target_os = "windows"))]
         log_to_syslog: false,
         rust_log: rust_log.or(option_env!("RUST_LOG")).map(|s| s.to_string()),
     };
