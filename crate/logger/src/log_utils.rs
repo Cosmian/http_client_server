@@ -4,7 +4,7 @@ use crate::{TracingConfig, tracing_init};
 /// (no open telemetry nor syslog)
 ///
 /// # Arguments
-/// * `rust_log` - The log string to set for RUST_LOG
+/// * `rust_log` - The log string to set for `RUST_LOG`
 ///
 /// # Notes
 /// - calling `log_init(None`) is equivalent to calling `log_init(option_env!("RUST_LOG"))`
@@ -12,11 +12,13 @@ use crate::{TracingConfig, tracing_init};
 pub fn log_init(rust_log: Option<&str>) {
     let config = TracingConfig {
         otlp: None,
-        service_name: "".to_string(),
+        service_name: String::new(),
         no_log_to_stdout: false,
         #[cfg(not(target_os = "windows"))]
         log_to_syslog: false,
-        rust_log: rust_log.or(option_env!("RUST_LOG")).map(|s| s.to_string()),
+        rust_log: rust_log
+            .or(option_env!("RUST_LOG"))
+            .map(std::borrow::ToOwned::to_owned),
     };
     tracing_init(&config);
 }

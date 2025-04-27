@@ -59,7 +59,7 @@ impl ConfigUtils for TestConfig {}
 fn test_config_utils_save_and_load() {
     let conf_path = "test_config.toml";
     let config = TestConfig {
-        key: "value".to_string(),
+        key: "value".to_owned(),
     };
 
     // Test saving to TOML

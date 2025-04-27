@@ -16,30 +16,30 @@ async fn main() {
     println!(
         r#"
 Make sure that Jaeger is started and running on localhost:4317:
-    
+
     docker run  -p16686:16686 -p4317:4317 -p 4318:4318 \
     -e COLLECTOR_OTLP_ENABLED=true -e LOG_LEVEL=debug \
     jaegertracing/jaeger:2.5.0
-    
+
     "#
     );
 
     let tracing = TracingConfig {
-        service_name: "test".to_string(),
+        service_name: "test".to_owned(),
         otlp: Some(TelemetryConfig {
             version: Some(
                 option_env!("CARGO_PKG_VERSION")
                     .unwrap_or("1.0.0")
-                    .to_string(),
+                    .to_owned(),
             ),
-            environment: Some("test".to_string()),
-            otlp_url: "http://localhost:4317".to_string(),
+            environment: Some("test".to_owned()),
+            otlp_url: "http://localhost:4317".to_owned(),
             enable_metering: true,
         }),
         no_log_to_stdout: false,
         #[cfg(not(target_os = "windows"))]
         log_to_syslog: true,
-        rust_log: Some("trace".to_string()),
+        rust_log: Some("trace".to_owned()),
     };
     let _otel_guard = tracing_init(&tracing);
 

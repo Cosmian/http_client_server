@@ -2,11 +2,7 @@ use crate::{LoggerError, otlp};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
-#[cfg(not(target_os = "windows"))]
-use std::borrow::Cow;
 use std::env::set_var;
-#[cfg(not(target_os = "windows"))]
-use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
@@ -32,7 +28,7 @@ pub struct TracingConfig {
     /// log to syslog
     pub log_to_syslog: bool,
 
-    /// Default RUST_LOG configuration.
+    /// Default `RUST_LOG` configuration.
     /// If it is not set, the value of the environment variable `RUST_LOG` will be used.
     pub rust_log: Option<String>,
 }
@@ -64,7 +60,7 @@ pub struct OtelGuard {
 impl OtelGuard {
     pub fn flush(&self) {
         if let Some(tracer_provider) = &self.tracer_provider {
-            tracer_provider.force_flush().unwrap()
+            tracer_provider.force_flush().unwrap();
         }
     }
 }
@@ -221,7 +217,8 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
 
     #[cfg(not(target_os = "windows"))]
     if config.log_to_syslog {
-        let identity = Cow::Owned(CString::new(config.service_name.clone())?);
+        let identity =
+            std::borrow::Cow::Owned(std::ffi::CString::new(config.service_name.clone())?);
         let (options, facility) = Default::default();
         if let Some(syslog) = syslog_tracing::Syslog::new(identity, options, facility) {
             let syslog_layer = tracing_subscriber::fmt::layer().with_writer(syslog);
@@ -241,8 +238,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
             OpenTelemetryLayer::new(otlp_provider.tracer(config.service_name.clone())).boxed(),
         );
 
-        let meter_provider = if otlp_config.enable_metering {
-            // The OpenTelemetry metering provider
+        let meter_provider = otlp_config.enable_metering.then(|| {
             let meter_provider = otlp::init_meter_provider(
                 &config.service_name,
                 &otlp_config.otlp_url,
@@ -250,10 +246,8 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
                 otlp_config.environment.clone(),
             );
             layers.push(MetricsLayer::new(meter_provider.clone()).boxed());
-            Some(meter_provider)
-        } else {
-            None
-        };
+            meter_provider
+        });
 
         otel_guard = OtelGuard {
             tracer_provider: Some(otlp_provider),

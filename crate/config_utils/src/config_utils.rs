@@ -27,12 +27,11 @@ pub fn get_home_folder() -> Option<PathBuf> {
     env::var_os("HOME")
         .or_else(|| env::var_os("USERPROFILE"))
         .or_else(|| {
-            env::var_os("HOMEDRIVE").and_then(|hdrive| {
-                env::var_os("HOMEPATH").map(|hpath| {
-                    let mut path = PathBuf::from(hdrive);
-                    path.push(hpath);
-                    path.into_os_string()
-                })
+            let hdrive = env::var_os("HOMEDRIVE")?;
+            env::var_os("HOMEPATH").map(|hpath| {
+                let mut path = PathBuf::from(hdrive);
+                path.push(hpath);
+                path.into_os_string()
             })
         })
         .map(PathBuf::from)

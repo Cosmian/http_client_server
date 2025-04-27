@@ -9,7 +9,7 @@ use opentelemetry_semantic_conventions::attribute::{
     DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION,
 };
 use std::time::Duration;
-use tonic::metadata::*;
+use tonic::metadata::{MetadataMap, MetadataValue};
 
 fn resource(service_name: &str, version: Option<String>, environment: Option<String>) -> Resource {
     let mut attributes = vec![KeyValue::new(SERVICE_NAME, service_name.to_owned())];
@@ -26,7 +26,7 @@ fn resource(service_name: &str, version: Option<String>, environment: Option<Str
 }
 
 /// Internal function to initialize the OTLP tracer
-/// that returns a Result with the SdkTracerProvider
+/// that returns a Result with the `SdkTracerProvider`
 pub(crate) fn init_tracer_provider(
     service_name: &str,
     url: &str,

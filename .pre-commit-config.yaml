@@ -21,7 +21,7 @@
 # ```
 # - If docker-compose-up fails to install, try installing docker-compose and installing the latest docker version.
 # If you get an error related to unavailable ports, you might have an instance of redis-server running on the same port. If so, stop the redis-server with the following command: `sudo systemctl stop redis-server.service` and relaunch the pre-commit hooks.
-exclude: test_data
+exclude: .idea
 repos:
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.4.0
@@ -121,12 +121,14 @@ repos:
         args: [--skip-string-normalization]
 
   - repo: https://github.com/Cosmian/git-hooks.git
-    rev: v1.0.32
+    rev: v1.0.36
     hooks:
       - id: cargo-format
-      # - id: dprint-toml-fix
-      # - id: cargo-upgrade
-      # - id: cargo-update
+      - id: dprint-toml-fix
+      - id: cargo-upgrade
+        stages: [manual]
+      - id: cargo-update
+        stages: [manual]
       - id: cargo-machete
       - id: cargo-build-all
       - id: cargo-test

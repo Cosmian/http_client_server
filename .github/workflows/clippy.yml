@@ -10,7 +10,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
 
   lint:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.83.0
         with:
           components: rustfmt, clippy
@@ -37,3 +37,12 @@ jobs:
 
       - name: Test doc
         run: cargo test --workspace --all-features --doc
+
+  cargo-publish:
+    needs:
+      - audit
+      - lint
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
+    with:
+      toolchain: 1.83
+    secrets: inherit
