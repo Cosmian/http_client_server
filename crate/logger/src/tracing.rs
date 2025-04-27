@@ -1,16 +1,18 @@
-use crate::{LoggerError, otlp};
+use crate::{otlp, LoggerError};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
+#[cfg(not(target_os = "windows"))]
 use std::borrow::Cow;
 use std::env::set_var;
+#[cfg(not(target_os = "windows"))]
 use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
-use tracing_subscriber::{Layer, reload};
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::{reload, Layer};
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 
