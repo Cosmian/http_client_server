@@ -1,8 +1,8 @@
-use cosmian_logger::{telemetry_init, TelemetryConfig};
+use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
 use tracing::span;
 use tracing_core::Level;
 
-/// Example of how to use the telemetry system
+/// Example of how to use the tracing system
 ///
 /// Make sure to first start Jaeger with the following command:
 ///
@@ -24,19 +24,23 @@ Make sure that Jaeger is started and running on localhost:4317:
     "#
     );
 
-    let telemetry = TelemetryConfig {
+    let tracing = TracingConfig {
         service_name: "test".to_string(),
-        version: Some(
-            option_env!("CARGO_PKG_VERSION")
-                .unwrap_or("1.0.0")
-                .to_string(),
-        ),
-        environment: Some("test".to_string()),
-        otlp_url: Some("http://localhost:4317".to_string()),
-        no_stdout: false,
+        otlp: Some(TelemetryConfig {
+            version: Some(
+                option_env!("CARGO_PKG_VERSION")
+                    .unwrap_or("1.0.0")
+                    .to_string(),
+            ),
+            environment: Some("test".to_string()),
+            otlp_url: "http://localhost:4317".to_string(),
+            enable_metering: true,
+        }),
+        no_log_to_stdout: false,
+        log_to_syslog: true,
         rust_log: Some("trace".to_string()),
     };
-    let _otel_guard = telemetry_init(&telemetry);
+    let _otel_guard = tracing_init(&tracing);
 
     let span = span!(Level::TRACE, "application");
     let _span_guard = span.enter();
@@ -44,7 +48,7 @@ Make sure that Jaeger is started and running on localhost:4317:
     foo().await;
 
     // Reloading of OTLP will be ignored
-    let _otel_guard_2 = telemetry_init(&telemetry);
+    let _otel_guard_2 = tracing_init(&tracing);
 
     tracing::debug!("Tracing after second initialization attempt");
 }

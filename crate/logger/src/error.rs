@@ -29,3 +29,9 @@ impl From<tracing_subscriber::util::TryInitError> for LoggerError {
         LoggerError::TracingSubscriber(value.to_string())
     }
 }
+
+impl From<std::ffi::NulError> for LoggerError {
+    fn from(e: std::ffi::NulError) -> Self {
+        LoggerError::Parsing(e.to_string())
+    }
+}
