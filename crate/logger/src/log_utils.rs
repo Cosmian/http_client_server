@@ -1,7 +1,7 @@
 use crate::{tracing_init, TracingConfig};
 
-/// Initializing the stdout logger only
-/// (no open tracing)
+/// Initializing the stdout logger only.
+/// (no open telemetry nor syslog)
 ///
 /// # Arguments
 /// * `rust_log` - The log string to set for RUST_LOG
