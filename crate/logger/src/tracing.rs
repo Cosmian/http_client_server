@@ -1,14 +1,15 @@
-use crate::{LoggerError, otlp};
+use std::{
+    env::set_var,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
 use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::metrics::SdkMeterProvider;
-use opentelemetry_sdk::trace::SdkTracerProvider;
-use std::env::set_var;
-use std::sync::atomic::{AtomicBool, Ordering};
+use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
-use tracing_subscriber::{Layer, reload};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, reload, util::SubscriberInitExt};
+
+use crate::{LoggerError, otlp};
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 
@@ -29,7 +30,8 @@ pub struct TracingConfig {
     pub log_to_syslog: bool,
 
     /// Default `RUST_LOG` configuration.
-    /// If it is not set, the value of the environment variable `RUST_LOG` will be used.
+    /// If it is not set, the value of the environment variable `RUST_LOG` will
+    /// be used.
     pub rust_log: Option<String>,
 }
 
@@ -129,11 +131,13 @@ impl Drop for OtelGuard {
 /// ```
 ///
 /// # Note
-/// The OTLP gRPC provider fails when the telemetry is initialized from a test started
-/// with `#[tokio::test]`. The reason is unknown at this stage. Use `log_init()` instead.
+/// The OTLP gRPC provider fails when the telemetry is initialized from a test
+/// started with `#[tokio::test]`. The reason is unknown at this stage. Use
+/// `log_init()` instead.
 ///
 /// # Arguments
-/// * `telemetry` - The `TelemetryConfig` object containing the telemetry configuration
+/// * `telemetry` - The `TelemetryConfig` object containing the telemetry
+///   configuration
 ///
 /// # Errors
 /// Returns an error if there is an issue initializing the telemetry system.
@@ -233,7 +237,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
             &otlp_config.otlp_url,
             otlp_config.version.clone(),
             otlp_config.environment.clone(),
-        )?;
+        );
         layers.push(
             OpenTelemetryLayer::new(otlp_provider.tracer(config.service_name.clone())).boxed(),
         );

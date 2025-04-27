@@ -103,8 +103,8 @@ pub fn location(
                     return Ok(default_system_path);
                 }
                 info!(
-                    "User conf path is at: {user_conf:?} and will be initialized with a \
-                     default value"
+                    "User conf path is at: {user_conf:?} and will be initialized with a default \
+                     value"
                 );
             }
             Ok(user_conf)

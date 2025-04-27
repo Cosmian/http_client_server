@@ -1,15 +1,18 @@
 //! Session authenticator.
 //!
-//! This authenticator is built on top of the `actix_identity` and `actix_session` crates
-//! so it is required to have them in dependencies and setup in the application beforehand.
+//! This authenticator is built on top of the `actix_identity` and
+//! `actix_session` crates so it is required to have them in dependencies and
+//! setup in the application beforehand.
 
 use actix_identity::{
     Identity, IdentityExt,
     error::{GetIdentityError, LoginError},
 };
 use actix_web::{
-    HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, body::BoxBody,
-    error::ResponseError, http::StatusCode, http::header::ContentType,
+    HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder,
+    body::BoxBody,
+    error::ResponseError,
+    http::{StatusCode, header::ContentType},
 };
 use serde::{Serialize, Serializer, de::DeserializeOwned, ser::SerializeStruct};
 use serde_json::Error as SerdeError;
@@ -108,21 +111,17 @@ impl<T: Serialize + DeserializeOwned> Session<T> {
 }
 
 impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
-    type Output = T;
     type Error = SessionError;
+    type Output = T;
 
     fn authenticate(request: &HttpRequest) -> Result<Self, Self::Error> {
-        request
-            .get_identity()
-            .map_err(Into::into)
-            .and_then(|identity| {
-                let data = serde_json::from_str(identity.id()?.as_str())?;
+        let identity = request.get_identity().map_err(SessionError::from)?;
+        let data = serde_json::from_str(identity.id()?.as_str())?;
 
-                Ok(Self {
-                    data,
-                    identity: Some(identity),
-                })
-            })
+        Ok(Self {
+            data,
+            identity: Some(identity),
+        })
     }
 
     fn data(&self) -> &Self::Output {
@@ -132,10 +131,6 @@ impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::authentication::Authenticated;
-    use crate::tests::session_store::MockSessionStore;
-
     use actix_http::Request;
     use actix_identity::IdentityMiddleware;
     use actix_session::SessionMiddleware;
@@ -148,6 +143,9 @@ mod tests {
         http::{Method, StatusCode},
         post, test,
     };
+
+    use super::*;
+    use crate::{authentication::Authenticated, tests::session_store::MockSessionStore};
 
     #[post("/start_session")]
     async fn start_session(request: HttpRequest) -> impl Responder {

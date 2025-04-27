@@ -1,14 +1,16 @@
-use crate::LoggerError;
+use std::time::Duration;
+
 use opentelemetry::{KeyValue, global};
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
-use opentelemetry_sdk::Resource;
-use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::trace::{RandomIdGenerator, Sampler, SdkTracerProvider};
-use opentelemetry_semantic_conventions::SCHEMA_URL;
-use opentelemetry_semantic_conventions::attribute::{
-    DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION,
+use opentelemetry_sdk::{
+    Resource,
+    metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider},
+    trace::{RandomIdGenerator, Sampler, SdkTracerProvider},
 };
-use std::time::Duration;
+use opentelemetry_semantic_conventions::{
+    SCHEMA_URL,
+    attribute::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION},
+};
 use tonic::metadata::{MetadataMap, MetadataValue};
 
 fn resource(service_name: &str, version: Option<String>, environment: Option<String>) -> Resource {
@@ -32,7 +34,7 @@ pub(crate) fn init_tracer_provider(
     url: &str,
     version: Option<String>,
     environment: Option<String>,
-) -> Result<SdkTracerProvider, LoggerError> {
+) -> SdkTracerProvider {
     let mut map = MetadataMap::with_capacity(3);
     map.insert("x-host", "example.com".parse().unwrap());
     map.insert("x-number", "123".parse().unwrap());
@@ -45,8 +47,11 @@ pub(crate) fn init_tracer_provider(
         .with_endpoint(url.to_owned())
         .with_timeout(Duration::from_secs(3))
         .with_metadata(map)
-        .build().expect(
-            "Failed to create OTLP exporter. Make sure the endpoint is correct and the server is running.");
+        .build()
+        .expect(
+            "Failed to create OTLP exporter. Make sure the endpoint is correct and the server is \
+             running.",
+        );
 
     let tracer_provider = SdkTracerProvider::builder()
         .with_batch_exporter(otlp_exporter)
@@ -59,7 +64,7 @@ pub(crate) fn init_tracer_provider(
 
     global::set_tracer_provider(tracer_provider.clone());
 
-    Ok(tracer_provider)
+    tracer_provider
 }
 
 // Construct MeterProvider for MetricsLayer

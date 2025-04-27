@@ -1,10 +1,8 @@
-use serde::Deserialize;
-use serde::Serialize;
+use std::{env, fs, path::PathBuf};
+
+use serde::{Deserialize, Serialize};
 
 use super::*;
-use std::env;
-use std::fs;
-use std::path::PathBuf;
 
 #[cfg(unix)]
 const TEST_FILE: &str = "/bin/cat";

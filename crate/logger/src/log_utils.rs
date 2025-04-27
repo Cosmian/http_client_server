@@ -7,8 +7,10 @@ use crate::{TracingConfig, tracing_init};
 /// * `rust_log` - The log string to set for `RUST_LOG`
 ///
 /// # Notes
-/// - calling `log_init(None`) is equivalent to calling `log_init(option_env!("RUST_LOG"))`
-/// - this function can be called from a `[tokio::test]` function, in contrast to `tracing_init`
+/// - calling `log_init(None`) is equivalent to calling
+///   `log_init(option_env!("RUST_LOG"))`
+/// - this function can be called from a `[tokio::test]` function, in contrast
+///   to `tracing_init`
 pub fn log_init(rust_log: Option<&str>) {
     let config = TracingConfig {
         otlp: None,
@@ -25,8 +27,9 @@ pub fn log_init(rust_log: Option<&str>) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tracing::{debug, info, trace};
+
+    use super::*;
 
     #[test]
     fn test_log_init() {

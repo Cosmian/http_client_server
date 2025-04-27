@@ -1,7 +1,7 @@
 //! Extensions for `actix_web::Either`.
 //!
-//! This module provides a trait that extends `actix_web::Either` to handle `Authenticate` implementation
-//! in a more convenient way.
+//! This module provides a trait that extends `actix_web::Either` to handle
+//! `Authenticate` implementation in a more convenient way.
 //!
 //! # Example
 //! ```rust,no_run

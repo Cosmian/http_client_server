@@ -14,14 +14,14 @@ use tracing_core::Level;
 #[tokio::main]
 async fn main() {
     println!(
-        r#"
+        r"
 Make sure that Jaeger is started and running on localhost:4317:
 
     docker run  -p16686:16686 -p4317:4317 -p 4318:4318 \
     -e COLLECTOR_OTLP_ENABLED=true -e LOG_LEVEL=debug \
     jaegertracing/jaeger:2.5.0
 
-    "#
+    "
     );
 
     let tracing = TracingConfig {
