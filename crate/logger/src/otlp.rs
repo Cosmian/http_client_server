@@ -1,13 +1,13 @@
 use crate::LoggerError;
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::{RandomIdGenerator, Sampler, SdkTracerProvider};
-use opentelemetry_sdk::Resource;
+use opentelemetry_semantic_conventions::SCHEMA_URL;
 use opentelemetry_semantic_conventions::attribute::{
     DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION,
 };
-use opentelemetry_semantic_conventions::SCHEMA_URL;
 use std::time::Duration;
 use tonic::metadata::*;
 

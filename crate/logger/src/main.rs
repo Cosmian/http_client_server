@@ -1,4 +1,4 @@
-use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
+use cosmian_logger::{TelemetryConfig, TracingConfig, tracing_init};
 use tracing::span;
 use tracing_core::Level;
 

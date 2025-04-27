@@ -1,4 +1,4 @@
-use crate::{otlp, LoggerError};
+use crate::{LoggerError, otlp};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
-use tracing_subscriber::{reload, Layer};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
+use tracing_subscriber::{Layer, reload};
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 
