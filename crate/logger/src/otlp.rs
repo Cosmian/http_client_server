@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use opentelemetry::{global, KeyValue};
-use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+use opentelemetry_otlp::{WithExportConfig, };
 use opentelemetry_sdk::{
     metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider},
     trace::{RandomIdGenerator, Sampler, SdkTracerProvider},
@@ -11,7 +11,7 @@ use opentelemetry_semantic_conventions::{
     attribute::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION},
     SCHEMA_URL,
 };
-use tonic::metadata::{MetadataMap, MetadataValue};
+use crate::LoggerError;
 
 fn resource(service_name: &str, version: Option<String>, environment: Option<String>) -> Resource {
     let mut attributes = vec![KeyValue::new(SERVICE_NAME, service_name.to_owned())];
@@ -34,24 +34,16 @@ pub(crate) fn init_tracer_provider(
     url: &str,
     version: Option<String>,
     environment: Option<String>,
-) -> SdkTracerProvider {
-    let mut map = MetadataMap::with_capacity(3);
-    map.insert("x-host", "example.com".parse().unwrap());
-    map.insert("x-number", "123".parse().unwrap());
-    map.insert_bin(
-        "trace-proto-bin",
-        MetadataValue::from_bytes(b"[binary data]"),
-    );
+) -> Result<SdkTracerProvider, LoggerError> {
     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .with_endpoint(url.to_owned())
         .with_timeout(Duration::from_secs(3))
-        .with_metadata(map)
         .build()
-        .expect(
-            "Failed to create OTLP exporter. Make sure the endpoint is correct and the server is \
-             running.",
-        );
+        .map_err(|e| LoggerError::Otlp(
+            format!("Failed to create OTLP provider exporter. Make sure the endpoint is correct and the server is \
+             running: {e}")
+        ))?;
 
     let tracer_provider = SdkTracerProvider::builder()
         .with_batch_exporter(otlp_exporter)
@@ -64,7 +56,7 @@ pub(crate) fn init_tracer_provider(
 
     global::set_tracer_provider(tracer_provider.clone());
 
-    tracer_provider
+    Ok(tracer_provider)
 }
 
 // Construct MeterProvider for MetricsLayer
@@ -73,13 +65,16 @@ pub(crate) fn init_meter_provider(
     url: &str,
     version: Option<String>,
     environment: Option<String>,
-) -> SdkMeterProvider {
+) -> Result<SdkMeterProvider,LoggerError> {
     let exporter = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
         .with_temporality(opentelemetry_sdk::metrics::Temporality::default())
         .with_endpoint(url.to_owned())
         .build()
-        .unwrap();
+        .map_err(|e| LoggerError::Otlp(
+            format!("Failed to create OTLP meter exporter. Make sure the endpoint is correct and the server is \
+             running: {e}")
+        ))?;
 
     let reader = PeriodicReader::builder(exporter)
         .with_interval(Duration::from_secs(30))
@@ -97,5 +92,5 @@ pub(crate) fn init_meter_provider(
 
     global::set_meter_provider(meter_provider.clone());
 
-    meter_provider
+    Ok(meter_provider)
 }

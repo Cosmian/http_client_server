@@ -59,14 +59,6 @@ pub struct OtelGuard {
     meter_provider: Option<SdkMeterProvider>,
 }
 
-impl OtelGuard {
-    pub fn flush(&self) {
-        if let Some(tracer_provider) = &self.tracer_provider {
-            tracer_provider.force_flush().unwrap();
-        }
-    }
-}
-
 impl Drop for OtelGuard {
     fn drop(&mut self) {
         if let Some(tracer_provider) = &mut self.tracer_provider {
@@ -237,21 +229,26 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
             &otlp_config.otlp_url,
             otlp_config.version.clone(),
             otlp_config.environment.clone(),
-        );
+        )?;
         layers.push(
             OpenTelemetryLayer::new(otlp_provider.tracer(config.service_name.clone())).boxed(),
         );
 
-        let meter_provider = otlp_config.enable_metering.then(|| {
-            let meter_provider = otlp::init_meter_provider(
-                &config.service_name,
-                &otlp_config.otlp_url,
-                otlp_config.version.clone(),
-                otlp_config.environment.clone(),
-            );
-            layers.push(MetricsLayer::new(meter_provider.clone()).boxed());
-            meter_provider
-        });
+        let meter_provider = otlp_config
+            .enable_metering
+            .then(|| {
+                otlp::init_meter_provider(
+                    &config.service_name,
+                    &otlp_config.otlp_url,
+                    otlp_config.version.clone(),
+                    otlp_config.environment.clone(),
+                )
+                .and_then(|meter_provider| {
+                    layers.push(MetricsLayer::new(meter_provider.clone()).boxed());
+                    Ok(meter_provider)
+                })
+            })
+            .transpose()?;
 
         otel_guard = OtelGuard {
             tracer_provider: Some(otlp_provider),
