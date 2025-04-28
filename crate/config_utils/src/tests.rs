@@ -1,10 +1,8 @@
-use serde::Deserialize;
-use serde::Serialize;
+use std::{env, fs, path::PathBuf};
+
+use serde::{Deserialize, Serialize};
 
 use super::*;
-use std::env;
-use std::fs;
-use std::path::PathBuf;
 
 #[cfg(unix)]
 const TEST_FILE: &str = "/bin/cat";
@@ -59,7 +57,7 @@ impl ConfigUtils for TestConfig {}
 fn test_config_utils_save_and_load() {
     let conf_path = "test_config.toml";
     let config = TestConfig {
-        key: "value".to_string(),
+        key: "value".to_owned(),
     };
 
     // Test saving to TOML

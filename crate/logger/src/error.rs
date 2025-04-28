@@ -14,24 +14,24 @@ pub enum LoggerError {
 
 impl From<opentelemetry_otlp::ExporterBuildError> for LoggerError {
     fn from(e: opentelemetry_otlp::ExporterBuildError) -> Self {
-        LoggerError::Otlp(e.to_string())
+        Self::Otlp(e.to_string())
     }
 }
 
 impl From<tracing_subscriber::filter::ParseError> for LoggerError {
     fn from(e: tracing_subscriber::filter::ParseError) -> Self {
-        LoggerError::Parsing(e.to_string())
+        Self::Parsing(e.to_string())
     }
 }
 
 impl From<tracing_subscriber::util::TryInitError> for LoggerError {
     fn from(value: tracing_subscriber::util::TryInitError) -> Self {
-        LoggerError::TracingSubscriber(value.to_string())
+        Self::TracingSubscriber(value.to_string())
     }
 }
 
 impl From<std::ffi::NulError> for LoggerError {
     fn from(e: std::ffi::NulError) -> Self {
-        LoggerError::Parsing(e.to_string())
+        Self::Parsing(e.to_string())
     }
 }

@@ -5,22 +5,24 @@ use std::{
 };
 
 use actix_web::{
-    App, HttpResponse, HttpServer, get,
+    get,
     web::{self, Data},
+    App, HttpResponse, HttpServer,
 };
 use oauth2::{
-    AuthUrl, ClientId, ClientSecret, CsrfToken, HttpRequest, PkceCodeChallenge, PkceCodeVerifier,
-    RedirectUrl, Scope, TokenUrl,
     basic::BasicClient,
     http::{
-        self, HeaderMap, HeaderValue, StatusCode,
+        self,
         header::{ACCEPT, CONTENT_TYPE},
+        HeaderMap, HeaderValue, StatusCode,
     },
+    AuthUrl, ClientId, ClientSecret, CsrfToken, HttpRequest, PkceCodeChallenge, PkceCodeVerifier,
+    RedirectUrl, Scope, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::{HttpClientError, error::result::HttpClientResult, http_client_bail};
+use crate::{error::result::HttpClientResult, http_client_bail, HttpClientError};
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct Oauth2LoginConfig {

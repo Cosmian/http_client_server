@@ -1,30 +1,35 @@
-use crate::{TracingConfig, tracing_init};
+use crate::{tracing_init, TracingConfig};
 
 /// Initializing the stdout logger only.
 /// (no open telemetry nor syslog)
 ///
 /// # Arguments
-/// * `rust_log` - The log string to set for RUST_LOG
+/// * `rust_log` - The log string to set for `RUST_LOG`
 ///
 /// # Notes
-/// - calling `log_init(None`) is equivalent to calling `log_init(option_env!("RUST_LOG"))`
-/// - this function can be called from a `[tokio::test]` function, in contrast to `tracing_init`
+/// - calling `log_init(None`) is equivalent to calling
+///   `log_init(option_env!("RUST_LOG"))`
+/// - this function can be called from a `[tokio::test]` function, in contrast
+///   to `tracing_init`
 pub fn log_init(rust_log: Option<&str>) {
     let config = TracingConfig {
         otlp: None,
-        service_name: "".to_string(),
+        service_name: String::new(),
         no_log_to_stdout: false,
         #[cfg(not(target_os = "windows"))]
         log_to_syslog: false,
-        rust_log: rust_log.or(option_env!("RUST_LOG")).map(|s| s.to_string()),
+        rust_log: rust_log
+            .or(option_env!("RUST_LOG"))
+            .map(std::borrow::ToOwned::to_owned),
     };
     tracing_init(&config);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tracing::{debug, info, trace};
+
+    use super::*;
 
     #[test]
     fn test_log_init() {

@@ -1,9 +1,10 @@
 //! HTTP authentication for Actix Web.
 //!
-//! This module provides a set of utilities to authenticate HTTP requests through `actix-web`
-//! extractors.
+//! This module provides a set of utilities to authenticate HTTP requests
+//! through `actix-web` extractors.
 //! The available authenticators are:
-//! - `Session`: A session-based authenticator that uses a cookie to store an identifier.
+//! - `Session`: A session-based authenticator that uses a cookie to store an
+//!   identifier.
 //!
 //! # Examples
 //! ```rust,no_run
@@ -33,17 +34,16 @@ pub mod either;
 #[cfg(feature = "session")]
 pub mod session;
 
-use std::future::{Ready, ready};
+use std::future::{ready, Ready};
 
-use actix_web::{FromRequest, HttpRequest, dev::Payload};
+use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use derive_more::{Deref, DerefMut};
-
 pub use either::EitherExt;
 
 /// The `Authenticate` trait is used to authenticate a request.
 ///
-/// The `Output` associated type maybe be used to extract any useful information about the
-/// authenticated request.
+/// The `Output` associated type maybe be used to extract any useful information
+/// about the authenticated request.
 pub trait Authenticate: Sized {
     /// Any information about the authenticated request.
     type Output;
