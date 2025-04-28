@@ -5,16 +5,16 @@
 //! setup in the application beforehand.
 
 use actix_identity::{
-    Identity, IdentityExt,
     error::{GetIdentityError, LoginError},
+    Identity, IdentityExt,
 };
 use actix_web::{
-    HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder,
     body::BoxBody,
     error::ResponseError,
-    http::{StatusCode, header::ContentType},
+    http::{header::ContentType, StatusCode},
+    HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder,
 };
-use serde::{Serialize, Serializer, de::DeserializeOwned, ser::SerializeStruct};
+use serde::{de::DeserializeOwned, ser::SerializeStruct, Serialize, Serializer};
 use serde_json::Error as SerdeError;
 use thiserror::Error;
 
@@ -135,13 +135,12 @@ mod tests {
     use actix_identity::IdentityMiddleware;
     use actix_session::SessionMiddleware;
     use actix_web::{
-        App, HttpResponse, Responder,
         body::MessageBody,
         cookie::Key,
         dev::{Service, ServiceResponse},
         get,
         http::{Method, StatusCode},
-        post, test,
+        post, test, App, HttpResponse, Responder,
     };
 
     use super::*;
@@ -167,8 +166,8 @@ mod tests {
         HttpResponse::Ok()
     }
 
-    async fn create_app()
-    -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>
+    async fn create_app(
+    ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>
     {
         test::init_service(
             App::new()

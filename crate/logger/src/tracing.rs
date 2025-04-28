@@ -7,9 +7,9 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
-use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, reload, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, reload, util::SubscriberInitExt, EnvFilter, Layer};
 
-use crate::{LoggerError, otlp};
+use crate::{otlp, LoggerError};
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 

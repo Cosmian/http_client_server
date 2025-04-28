@@ -61,11 +61,11 @@ where
 mod tests {
     use actix_http::Request;
     use actix_web::{
-        App, Either, Error, HttpRequest, HttpResponse, Responder,
         body::MessageBody,
         dev::{Service, ServiceResponse},
         error, get, test,
         web::Bytes,
+        App, Either, Error, HttpRequest, HttpResponse, Responder,
     };
 
     use super::EitherExt;
@@ -107,8 +107,8 @@ mod tests {
         HttpResponse::Ok().body(authentication.data().to_owned())
     }
 
-    async fn create_app()
-    -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>
+    async fn create_app(
+    ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>
     {
         test::init_service(App::new().service(get_data)).await
     }

@@ -5,12 +5,12 @@ use std::{
     path::PathBuf,
 };
 
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 use tracing::{info, trace};
 
 use crate::{
     config_bail,
-    error::{ConfigUtilsError, result::ConfigUtilsResultHelper},
+    error::{result::ConfigUtilsResultHelper, ConfigUtilsError},
 };
 
 /// Returns the path to the current user's home folder.

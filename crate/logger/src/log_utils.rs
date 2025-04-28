@@ -1,4 +1,4 @@
-use crate::{TracingConfig, tracing_init};
+use crate::{tracing_init, TracingConfig};
 
 /// Initializing the stdout logger only.
 /// (no open telemetry nor syslog)

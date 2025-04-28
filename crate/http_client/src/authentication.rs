@@ -34,9 +34,9 @@ pub mod either;
 #[cfg(feature = "session")]
 pub mod session;
 
-use std::future::{Ready, ready};
+use std::future::{ready, Ready};
 
-use actix_web::{FromRequest, HttpRequest, dev::Payload};
+use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use derive_more::{Deref, DerefMut};
 pub use either::EitherExt;
 
