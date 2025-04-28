@@ -1,7 +1,8 @@
 use std::time::Duration;
 
+use crate::LoggerError;
 use opentelemetry::{global, KeyValue};
-use opentelemetry_otlp::{WithExportConfig, };
+use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
     metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider},
     trace::{RandomIdGenerator, Sampler, SdkTracerProvider},
@@ -11,7 +12,6 @@ use opentelemetry_semantic_conventions::{
     attribute::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION},
     SCHEMA_URL,
 };
-use crate::LoggerError;
 
 fn resource(service_name: &str, version: Option<String>, environment: Option<String>) -> Resource {
     let mut attributes = vec![KeyValue::new(SERVICE_NAME, service_name.to_owned())];
@@ -65,7 +65,7 @@ pub(crate) fn init_meter_provider(
     url: &str,
     version: Option<String>,
     environment: Option<String>,
-) -> Result<SdkMeterProvider,LoggerError> {
+) -> Result<SdkMeterProvider, LoggerError> {
     let exporter = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
         .with_temporality(opentelemetry_sdk::metrics::Temporality::default())
