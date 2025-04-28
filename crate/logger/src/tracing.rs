@@ -243,9 +243,9 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
                     otlp_config.version.clone(),
                     otlp_config.environment.clone(),
                 )
-                .and_then(|meter_provider| {
+                .map(|meter_provider| {
                     layers.push(MetricsLayer::new(meter_provider.clone()).boxed());
-                    Ok(meter_provider)
+                    meter_provider
                 })
             })
             .transpose()?;
