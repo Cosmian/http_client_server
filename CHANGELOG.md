@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-04-29
+
+### 🚀 Features
+
+- Improved Tracing ([#6](https://github.com/Cosmian/http_client_server/pull/6))
+
+### 💼 Other
+
+- Bump version to 0.1.1
+
+### ⚙️ Miscellaneous Tasks
+
+- Add crates description + RUSTSEC fixes
+
 ## [0.1.0] - 2025-02-03
 
 ### 🚀 Features
