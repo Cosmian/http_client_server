@@ -1,5 +1,4 @@
-use std::str::FromStr;
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, str::FromStr};
 
 use actix_session::storage::{LoadError, SaveError, SessionKey, SessionStore, UpdateError};
 use actix_web::cookie::time::Duration;
@@ -46,18 +45,15 @@ impl SessionStore for MockSessionStore {
         session_state: HashMap<String, String>,
         _ttl: &Duration,
     ) -> Result<SessionKey, UpdateError> {
-        key_to_index(&session_key)
-            .map_err(UpdateError::Other)
-            .and_then(|i| {
-                self.data.borrow_mut().get_mut(i).map_or_else(
-                    || Err(UpdateError::Other(Error::msg("No such key"))),
-                    |data| {
-                        *data = session_state;
+        let i = key_to_index(&session_key).map_err(UpdateError::Other)?;
+        self.data.borrow_mut().get_mut(i).map_or_else(
+            || Err(UpdateError::Other(Error::msg("No such key"))),
+            |data| {
+                *data = session_state;
 
-                        Ok(session_key)
-                    },
-                )
-            })
+                Ok(session_key)
+            },
+        )
     }
 
     async fn update_ttl(&self, _session_key: &SessionKey, _ttl: &Duration) -> Result<(), Error> {

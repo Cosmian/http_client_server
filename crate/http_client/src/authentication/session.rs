@@ -1,17 +1,20 @@
 //! Session authenticator.
 //!
-//! This authenticator is built on top of the `actix_identity` and `actix_session` crates
-//! so it is required to have them in dependencies and setup in the application beforehand.
+//! This authenticator is built on top of the `actix_identity` and
+//! `actix_session` crates so it is required to have them in dependencies and
+//! setup in the application beforehand.
 
 use actix_identity::{
-    Identity, IdentityExt,
     error::{GetIdentityError, LoginError},
+    Identity, IdentityExt,
 };
 use actix_web::{
-    HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, body::BoxBody,
-    error::ResponseError, http::StatusCode, http::header::ContentType,
+    body::BoxBody,
+    error::ResponseError,
+    http::{header::ContentType, StatusCode},
+    HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder,
 };
-use serde::{Serialize, Serializer, de::DeserializeOwned, ser::SerializeStruct};
+use serde::{de::DeserializeOwned, ser::SerializeStruct, Serialize, Serializer};
 use serde_json::Error as SerdeError;
 use thiserror::Error;
 
@@ -108,21 +111,17 @@ impl<T: Serialize + DeserializeOwned> Session<T> {
 }
 
 impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
-    type Output = T;
     type Error = SessionError;
+    type Output = T;
 
     fn authenticate(request: &HttpRequest) -> Result<Self, Self::Error> {
-        request
-            .get_identity()
-            .map_err(Into::into)
-            .and_then(|identity| {
-                let data = serde_json::from_str(identity.id()?.as_str())?;
+        let identity = request.get_identity().map_err(SessionError::from)?;
+        let data = serde_json::from_str(identity.id()?.as_str())?;
 
-                Ok(Self {
-                    data,
-                    identity: Some(identity),
-                })
-            })
+        Ok(Self {
+            data,
+            identity: Some(identity),
+        })
     }
 
     fn data(&self) -> &Self::Output {
@@ -132,22 +131,20 @@ impl<T: Serialize + DeserializeOwned> Authenticate for Session<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::authentication::Authenticated;
-    use crate::tests::session_store::MockSessionStore;
-
     use actix_http::Request;
     use actix_identity::IdentityMiddleware;
     use actix_session::SessionMiddleware;
     use actix_web::{
-        App, HttpResponse, Responder,
         body::MessageBody,
         cookie::Key,
         dev::{Service, ServiceResponse},
         get,
         http::{Method, StatusCode},
-        post, test,
+        post, test, App, HttpResponse, Responder,
     };
+
+    use super::*;
+    use crate::{authentication::Authenticated, tests::session_store::MockSessionStore};
 
     #[post("/start_session")]
     async fn start_session(request: HttpRequest) -> impl Responder {
@@ -169,8 +166,8 @@ mod tests {
         HttpResponse::Ok()
     }
 
-    async fn create_app()
-    -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>
+    async fn create_app(
+    ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>
     {
         test::init_service(
             App::new()

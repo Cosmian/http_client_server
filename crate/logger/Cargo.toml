@@ -9,5 +9,32 @@ rust-version.workspace = true
 description = "Logger init"
 
 [dependencies]
+opentelemetry = { version = "0.29.0", features = ["trace", "metrics"] }
+opentelemetry-otlp = { version = "0.29.0", features = [
+  "trace",
+  "metrics",
+  "grpc-tonic",
+  "integration-testing",
+] }
+opentelemetry-semantic-conventions = { version = "0.29.0", features = [
+  "semconv_experimental",
+] }
+opentelemetry-stdout = { version = "0.29.0", features = ["trace", "metrics"] }
+opentelemetry_sdk = { version = "0.29.0", default-features = false, features = [
+  "trace",
+  "rt-tokio",
+] }
+syslog-tracing = "0.3"
+thiserror = { workspace = true }
+tokio = { version = "1.44", features = ["full"] }
+tonic = "0.12.3"
 tracing = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-core = "0.1.33"
+tracing-opentelemetry = "0.30"
+tracing-subscriber = { workspace = true, features = [
+  "env-filter",
+  "fmt",
+  "ansi",
+] }
+
+[dev-dependencies]

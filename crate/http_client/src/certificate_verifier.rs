@@ -1,8 +1,8 @@
 use std::{sync::Arc, time::SystemTime};
 
 use rustls::{
-    Certificate, Error as RustTLSError, ServerName,
     client::{ServerCertVerified, ServerCertVerifier},
+    Certificate, Error as RustTLSError, ServerName,
 };
 
 /// A TLS verifier adding the ability to match the leaf certificate with a

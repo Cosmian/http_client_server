@@ -32,7 +32,7 @@ where
 
 impl<T> ConfigUtilsResultHelper<T> for Option<T> {
     fn context(self, context: &str) -> ConfigUtilsResult<T> {
-        self.ok_or_else(|| ConfigUtilsError::Default(context.to_string()))
+        self.ok_or_else(|| ConfigUtilsError::Default(context.to_owned()))
     }
 
     fn with_context<D, O>(self, op: O) -> ConfigUtilsResult<T>

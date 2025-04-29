@@ -1,49 +1,43 @@
-use std::{
-    env::{set_var, var},
-    sync::Once,
-};
+use crate::{tracing_init, TracingConfig};
 
-use tracing_subscriber::{
-    EnvFilter, layer::SubscriberExt, registry, reload, util::SubscriberInitExt,
-};
-
-static LOG_INIT: Once = Once::new();
-
-/// # Panics
+/// Initializing the stdout logger only.
+/// (no open telemetry nor syslog)
 ///
-/// Will panic if we cannot set global tracing subscriber
-pub fn log_init(default_value: Option<&str>) {
-    if default_value.is_some() || var("RUST_LOG").is_ok() {
-        LOG_INIT.call_once(|| unsafe {
-            if let Ok(current_value) = var("RUST_LOG") {
-                set_var("RUST_LOG", current_value);
-                set_var("RUST_BACKTRACE", "full");
-                tracing_setup();
-            } else if let Some(input_value) = default_value {
-                set_var("RUST_LOG", input_value);
-                set_var("RUST_BACKTRACE", "full");
-                tracing_setup();
-            }
-        });
-    }
+/// # Arguments
+/// * `rust_log` - The log string to set for `RUST_LOG`
+///
+/// # Notes
+/// - calling `log_init(None`) is equivalent to calling
+///   `log_init(option_env!("RUST_LOG"))`
+/// - this function can be called from a `[tokio::test]` function, in contrast
+///   to `tracing_init`
+pub fn log_init(rust_log: Option<&str>) {
+    let config = TracingConfig {
+        otlp: None,
+        service_name: String::new(),
+        no_log_to_stdout: false,
+        #[cfg(not(target_os = "windows"))]
+        log_to_syslog: false,
+        rust_log: rust_log
+            .or(option_env!("RUST_LOG"))
+            .map(std::borrow::ToOwned::to_owned),
+    };
+    tracing_init(&config);
 }
 
-/// # Panics
-///
-/// Will panic if:
-/// - we cannot set global subscriber
-/// - we cannot init the log tracer
-fn tracing_setup() {
-    let format = tracing_subscriber::fmt::layer()
-        .with_level(true)
-        .with_target(true)
-        .with_thread_ids(true)
-        .with_line_number(true)
-        .with_file(true)
-        .with_ansi(true)
-        .compact();
+#[cfg(test)]
+mod tests {
+    use tracing::{debug, info, trace};
 
-    let (filter, _reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
+    use super::*;
 
-    registry().with(filter).with(format).init();
+    #[test]
+    fn test_log_init() {
+        log_init(Some("debug"));
+        info!("This is an INFO test log message");
+        debug!("This is a DEBUG test log message");
+        debug!("RUST_LOG: {:?}", std::env::var("RUST_LOG"));
+        // The next message is a TRACING level and should be ignored
+        trace!("This is a TRACE test log message");
+    }
 }
