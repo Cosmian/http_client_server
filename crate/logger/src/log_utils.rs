@@ -16,6 +16,7 @@ pub fn log_init(rust_log: Option<&str>) {
         otlp: None,
         service_name: String::new(),
         no_log_to_stdout: false,
+        log_to_file: None,
         #[cfg(not(target_os = "windows"))]
         log_to_syslog: false,
         rust_log: rust_log

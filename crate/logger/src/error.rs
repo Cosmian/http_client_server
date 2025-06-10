@@ -10,6 +10,9 @@ pub enum LoggerError {
 
     #[error("Tracing subscriber error: {0}")]
     TracingSubscriber(String),
+
+    #[error("IO error: {0}")]
+    IOError(String),
 }
 
 impl From<opentelemetry_otlp::ExporterBuildError> for LoggerError {

@@ -1,10 +1,10 @@
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
+use std::path::PathBuf;
 use std::{
     env::set_var,
     sync::atomic::{AtomicBool, Ordering},
 };
-
-use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::{layer::SubscriberExt, reload, util::SubscriberInitExt, EnvFilter, Layer};
@@ -28,6 +28,11 @@ pub struct TracingConfig {
     #[cfg(not(target_os = "windows"))]
     /// log to syslog
     pub log_to_syslog: bool,
+
+    /// If set, logs will be written to the specified directory (first argument)
+    /// using the specified file name (second argument): <name>.YYYY-MM-DD.
+    /// It is a rolling file appender that creates a new log file every day.
+    pub log_to_file: Option<(PathBuf, String)>,
 
     /// Default `RUST_LOG` configuration.
     /// If it is not set, the value of the environment variable `RUST_LOG` will
@@ -54,12 +59,13 @@ pub struct TelemetryConfig {
 }
 
 #[derive(Default)]
-pub struct OtelGuard {
+pub struct LoggingGuards {
     tracer_provider: Option<SdkTracerProvider>,
     meter_provider: Option<SdkMeterProvider>,
+    rolling_appender_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
 }
 
-impl Drop for OtelGuard {
+impl Drop for LoggingGuards {
     fn drop(&mut self) {
         if let Some(tracer_provider) = &mut self.tracer_provider {
             debug!("dropping OTLP tracer");
@@ -124,7 +130,7 @@ impl Drop for OtelGuard {
 ///
 /// # Note
 /// The OTLP gRPC provider fails when the telemetry is initialized from a test
-/// started with `#[tokio::test]`. The reason is unknown at this stage. Use
+/// started with `#[tokio::test]`. The reason is currently unknown. Use
 /// `log_init()` instead.
 ///
 /// # Arguments
@@ -133,7 +139,7 @@ impl Drop for OtelGuard {
 ///
 /// # Errors
 /// Returns an error if there is an issue initializing the telemetry system.
-pub fn tracing_init(tracing_config: &TracingConfig) -> OtelGuard {
+pub fn tracing_init(tracing_config: &TracingConfig) -> LoggingGuards {
     // Set the RUST_LOG environment variable if a config value is provided
     if let Some(rust_log) = &tracing_config.rust_log {
         set_var("RUST_LOG", rust_log);
@@ -146,7 +152,7 @@ pub fn tracing_init(tracing_config: &TracingConfig) -> OtelGuard {
         let span = span!(tracing::Level::INFO, "tracing_init");
         let _guard = span.enter();
         warn!("Tracing already initialized or crashed");
-        return OtelGuard::default();
+        return LoggingGuards::default();
     }
 
     match tracing_init_(tracing_config) {
@@ -160,13 +166,13 @@ pub fn tracing_init(tracing_config: &TracingConfig) -> OtelGuard {
             TRACING_SET.store(false, Ordering::Release);
             // If we cannot initialize the tracing system, we should not panic
             eprintln!("Failed to initialize tracing: {err:?}");
-            OtelGuard::default()
+            LoggingGuards::default()
         }
     }
 }
 
-fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
-    let mut otel_guard = OtelGuard::default();
+fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
+    let mut otel_guard = LoggingGuards::default();
     let mut layers = vec![];
 
     let filter = if config.otlp.is_some() {
@@ -200,6 +206,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
         filter
     };
 
+    // Logging to stdout
     if !config.no_log_to_stdout {
         let fmt_layer = tracing_subscriber::fmt::layer()
             .with_level(true)
@@ -211,6 +218,35 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
         layers.push(fmt_layer.boxed());
     }
 
+    // Logging the rolling file appender
+    if let Some((dir, name)) = &config.log_to_file {
+        // create the logs directory if it does not exist
+        if !dir.exists() {
+            std::fs::create_dir_all(dir).map_err(|err| {
+                LoggerError::IOError(format!("Failed to create logs directory: {dir:?}: {err:?}"))
+            })?;
+        }
+
+        // Configure a daily rolling file appender
+        // Log files will be created in the "logs" directory
+        // with names like "app.log.YYYY-MM-DD"
+        let file_appender = tracing_appender::rolling::daily(dir, name);
+        let (non_blocking_writer, guard) = tracing_appender::non_blocking(file_appender);
+        otel_guard.rolling_appender_guard = Some(guard);
+
+        let fmt_layer = tracing_subscriber::fmt::layer()
+            .with_writer(non_blocking_writer)
+            .with_level(true)
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_line_number(true)
+            .with_file(true)
+            .with_ansi(false) // Disable ANSI colors in file logs
+            .compact();
+        layers.push(fmt_layer.boxed());
+    }
+
+    // Logging to syslog
     #[cfg(not(target_os = "windows"))]
     if config.log_to_syslog {
         let identity =
@@ -222,6 +258,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
         }
     }
 
+    // Logging to the OpenTelemetry collector
     if let Some(otlp_config) = &config.otlp {
         // The OpenTelemetry tracing provider
         let otlp_provider = otlp::init_tracer_provider(
@@ -250,11 +287,9 @@ fn tracing_init_(config: &TracingConfig) -> Result<OtelGuard, LoggerError> {
             })
             .transpose()?;
 
-        otel_guard = OtelGuard {
-            tracer_provider: Some(otlp_provider),
-            meter_provider,
-        };
-    }
+        otel_guard.tracer_provider = Some(otlp_provider);
+        otel_guard.meter_provider = meter_provider;
+    };
 
     // Initialize the global tracing subscriber
     tracing_subscriber::registry()
