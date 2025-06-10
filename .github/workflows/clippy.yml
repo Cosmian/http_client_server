@@ -16,13 +16,14 @@ jobs:
   lint:
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
+        os: [ubuntu-22.04, windows-2022, macos-15]
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.85.0
           components: rustfmt, clippy
 
       # Ensure all code has been formatted with rustfmt
@@ -47,5 +48,5 @@ jobs:
       - lint
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
     with:
-      toolchain: 1.83
+      toolchain: 1.85.0
     secrets: inherit

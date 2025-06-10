@@ -29,6 +29,7 @@ thiserror = { workspace = true }
 tokio = { version = "1.44", features = ["full"] }
 tonic = "0.12.3"
 tracing = { workspace = true }
+tracing-appender = { workspace = true }
 tracing-core = "0.1.33"
 tracing-opentelemetry = "0.30"
 tracing-subscriber = { workspace = true, features = [

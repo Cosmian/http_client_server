@@ -5,7 +5,7 @@ mod tracing;
 
 pub use error::LoggerError;
 pub use log_utils::log_init;
-pub use tracing::{tracing_init, OtelGuard, TelemetryConfig, TracingConfig};
+pub use tracing::{tracing_init, LoggingGuards, TelemetryConfig, TracingConfig};
 pub mod reexport {
     pub use tracing;
     pub use tracing_subscriber;
