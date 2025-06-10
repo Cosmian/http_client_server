@@ -229,7 +229,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 
         // Configure a daily rolling file appender
         // Log files will be created in the "logs" directory
-        // with names like "app.log.YYYY-MM-DD"
+        // with names like "<name>.YYYY-MM-DD"
         let file_appender = tracing_appender::rolling::daily(dir, name);
         let (non_blocking_writer, guard) = tracing_appender::non_blocking(file_appender);
         otel_guard.rolling_appender_guard = Some(guard);

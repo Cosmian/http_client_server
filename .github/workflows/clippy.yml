@@ -16,7 +16,7 @@ jobs:
   lint:
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
+        os: [ ubuntu-22.04, windows-2022, macos-14 ]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -47,5 +47,5 @@ jobs:
       - lint
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
     with:
-      toolchain: 1.83
+      toolchain: 1.85
     secrets: inherit
