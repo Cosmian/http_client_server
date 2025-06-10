@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-06-10
+
+### 🚀 Features
+
+- Added a Rolling File Appender to the logger crate
+
 ## [0.2.0] - 2025-04-29
 
 ### 🚀 Features
