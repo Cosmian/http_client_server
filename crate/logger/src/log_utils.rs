@@ -22,6 +22,7 @@ pub fn log_init(rust_log: Option<&str>) {
         rust_log: rust_log
             .or(option_env!("RUST_LOG"))
             .map(std::borrow::ToOwned::to_owned),
+        with_ansi_colors: false,
     };
     tracing_init(&config);
 }
