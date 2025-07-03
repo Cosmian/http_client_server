@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-07-03
+
+### 🚀 Features
+
+- Disable ANSI colors in logger crate by default. Added a feature to enable them.
+
 ## [0.3.0] - 2025-06-10
 
 ### 🚀 Features

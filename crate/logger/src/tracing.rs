@@ -38,6 +38,9 @@ pub struct TracingConfig {
     /// If it is not set, the value of the environment variable `RUST_LOG` will
     /// be used.
     pub rust_log: Option<String>,
+
+    /// If true, the logs to stdout will be written with ANSI colors.
+    pub with_ansi_colors: bool,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -110,6 +113,7 @@ impl Drop for LoggingGuards {
 ///        #[cfg(not(target_os = "windows"))]
 ///        log_to_syslog: true,
 ///        rust_log: Some("trace".to_string()),
+///        with_ansi_colors: false,
 ///    };
 ///    let _otel_guard = tracing_init(&tracing);
 ///
@@ -214,6 +218,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
             .with_thread_ids(true)
             .with_line_number(true)
             .with_file(true)
+            .with_ansi(config.with_ansi_colors) // Use ANSI colors if configured
             .compact();
         layers.push(fmt_layer.boxed());
     }
@@ -253,7 +258,14 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
             std::borrow::Cow::Owned(std::ffi::CString::new(config.service_name.clone())?);
         let (options, facility) = Default::default();
         if let Some(syslog) = syslog_tracing::Syslog::new(identity, options, facility) {
-            let syslog_layer = tracing_subscriber::fmt::layer().with_writer(syslog);
+            let syslog_layer = tracing_subscriber::fmt::layer()
+                .with_writer(syslog)
+                .with_level(true)
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_line_number(true)
+                .with_file(true)
+                .with_ansi(false);
             layers.push(syslog_layer.boxed());
         }
     }

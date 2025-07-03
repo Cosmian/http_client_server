@@ -42,6 +42,7 @@ Make sure that Jaeger is started and running on localhost:4317:
         #[cfg(not(target_os = "windows"))]
         log_to_syslog: true,
         rust_log: Some("trace".to_owned()),
+        with_ansi_colors: false,
     };
     let _otel_guard = tracing_init(&tracing);
 
