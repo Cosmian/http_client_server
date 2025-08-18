@@ -41,6 +41,25 @@ pub struct Oauth2LoginConfig {
     pub scopes: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+/// The Forward Proxy Parameters if any
+pub struct ProxyParams {
+    /// The proxy url
+    pub url: Url,
+
+    /// Set the Proxy-Authorization header username using Basic auth.
+    pub basic_auth_username: Option<String>,
+
+    /// Set the Proxy-Authorization header password using Basic auth.
+    pub basic_auth_password: Option<String>,
+
+    /// Set the Proxy-Authorization header to a specified value.
+    pub custom_auth_header: Option<String>,
+
+    /// The No Proxy exclusion list to this Proxy
+    pub exclusion_list: Vec<String>,
+}
+
 /// This struct holds the state of the login process.
 /// It is used to generate the authorization URL and to store the PKCE verifier
 /// and the CSRF token.

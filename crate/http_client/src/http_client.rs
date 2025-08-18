@@ -8,7 +8,10 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client, ClientBuilder, Identity,
 };
-use rustls::{client::WebPkiVerifier, Certificate};
+use rustls::{
+    client::{WebPkiVerifier},
+    Certificate,
+};
 use serde::{Deserialize, Serialize};
 use x509_cert::{
     der::{DecodePem, Encode},
@@ -18,8 +21,11 @@ use x509_cert::{
 use crate::{
     certificate_verifier::{LeafCertificateVerifier, NoVerifier},
     error::{result::HttpClientResultHelper, HttpClientError},
+    login::ProxyParams,
     Oauth2LoginConfig,
 };
+
+use crate::http_client_error;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct HttpClientConfig {
@@ -41,6 +47,8 @@ pub struct HttpClientConfig {
     pub database_secret: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth2_conf: Option<Oauth2LoginConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy_params: Option<ProxyParams>,
 }
 
 impl Default for HttpClientConfig {
@@ -54,6 +62,7 @@ impl Default for HttpClientConfig {
             ssl_client_pkcs12_path: None,
             ssl_client_pkcs12_password: None,
             oauth2_conf: None,
+            proxy_params: None,
         }
     }
 }
@@ -136,14 +145,40 @@ impl HttpClient {
             None => builder,
         };
 
+        let mut client_builder = builder.default_headers(headers);
+
+        // Configure the client with proxy settings if available
+        if let Some(proxy_params) = &http_conf.proxy_params {
+            let mut proxy = reqwest::Proxy::all(proxy_params.url.clone()).map_err(|e| {
+                http_client_error!("Failed to configure the HTTPS proxy for JWKS fetch: {e}")
+            })?;
+            if let Some(username) = &proxy_params.basic_auth_username {
+                proxy = proxy.basic_auth(
+                    username,
+                    &proxy_params.basic_auth_password.clone().unwrap_or_default(),
+                );
+            } else if let Some(custom_auth_header) = &proxy_params.custom_auth_header {
+                proxy = proxy.custom_http_auth(HeaderValue::from_str(custom_auth_header).map_err(
+                    |e| {
+                        http_client_error!(
+                            "Failed to set custom HTTP auth header for JWKS fetch: {e}"
+                        )
+                    },
+                )?);
+            }
+            if !proxy_params.exclusion_list.is_empty() {
+                proxy = proxy.no_proxy(reqwest::NoProxy::from_string(
+                    &proxy_params.exclusion_list.join(","),
+                ));
+            }
+
+            client_builder = client_builder.proxy(proxy);
+        }
+
+        let client = client_builder.build().context("Reqwest client builder")?;
+
         // Build the client
-        Ok(Self {
-            client: builder
-                .default_headers(headers)
-                .build()
-                .context("Reqwest client builder")?,
-            server_url,
-        })
+        Ok(Self { client, server_url })
     }
 }
 
