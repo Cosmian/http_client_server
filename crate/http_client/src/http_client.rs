@@ -18,7 +18,7 @@ use x509_cert::{
 use crate::{
     certificate_verifier::{LeafCertificateVerifier, NoVerifier},
     error::{result::HttpClientResultHelper, HttpClientError},
-    Oauth2LoginConfig,
+    http_client_error, Oauth2LoginConfig, ProxyParams,
 };
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -41,6 +41,8 @@ pub struct HttpClientConfig {
     pub database_secret: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth2_conf: Option<Oauth2LoginConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy_params: Option<ProxyParams>,
 }
 
 impl Default for HttpClientConfig {
@@ -54,6 +56,7 @@ impl Default for HttpClientConfig {
             ssl_client_pkcs12_path: None,
             ssl_client_pkcs12_password: None,
             oauth2_conf: None,
+            proxy_params: None,
         }
     }
 }
@@ -119,7 +122,7 @@ impl HttpClient {
         );
 
         // If a PKCS12 file is provided, use it to build the client
-        let builder = match http_conf.ssl_client_pkcs12_path.clone() {
+        let mut builder = match http_conf.ssl_client_pkcs12_path.clone() {
             Some(ssl_client_pkcs12) => {
                 let mut pkcs12 = BufReader::new(File::open(ssl_client_pkcs12)?);
                 let mut pkcs12_bytes = vec![];
@@ -135,6 +138,33 @@ impl HttpClient {
             }
             None => builder,
         };
+
+        // Configure the client with proxy settings if available
+        if let Some(proxy_params) = &http_conf.proxy_params {
+            let mut proxy = reqwest::Proxy::all(proxy_params.url.clone()).map_err(|e| {
+                http_client_error!("Failed to configure the HTTPS proxy for HTTP client: {e}")
+            })?;
+            if let Some(username) = &proxy_params.basic_auth_username {
+                proxy = proxy.basic_auth(
+                    username,
+                    &proxy_params.basic_auth_password.clone().unwrap_or_default(),
+                );
+            } else if let Some(custom_auth_header) = &proxy_params.custom_auth_header {
+                proxy = proxy.custom_http_auth(HeaderValue::from_str(custom_auth_header).map_err(
+                    |e| {
+                        http_client_error!(
+                            "Failed to set custom HTTP auth header for HTTP client: {e}"
+                        )
+                    },
+                )?);
+            }
+            if !proxy_params.exclusion_list.is_empty() {
+                proxy = proxy.no_proxy(reqwest::NoProxy::from_string(
+                    &proxy_params.exclusion_list.join(","),
+                ));
+            }
+            builder = builder.proxy(proxy);
+        }
 
         // Build the client
         Ok(Self {
