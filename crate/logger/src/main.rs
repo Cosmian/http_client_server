@@ -1,5 +1,6 @@
-use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
 use std::path::PathBuf;
+
+use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
 use tracing::span;
 use tracing_core::Level;
 
