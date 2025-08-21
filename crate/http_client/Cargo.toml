@@ -28,6 +28,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "1.43", features = ["full"] }
+tracing = "0.1"
 url = "2.5"
 webpki-roots = "0.22"
 x509-cert = "0.2.5"

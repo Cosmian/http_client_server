@@ -10,6 +10,7 @@ use reqwest::{
 };
 use rustls::{client::WebPkiVerifier, Certificate};
 use serde::{Deserialize, Serialize};
+use tracing::trace;
 use x509_cert::{
     der::{DecodePem, Encode},
     Certificate as X509Certificate,
@@ -141,6 +142,7 @@ impl HttpClient {
 
         // Configure the client with proxy settings if available
         if let Some(proxy_params) = &http_conf.proxy_params {
+            trace!("Configuring HTTP client with proxy parameters: {proxy_params:?}");
             let mut proxy = reqwest::Proxy::all(proxy_params.url.clone()).map_err(|e| {
                 http_client_error!("Failed to configure the HTTPS proxy for HTTP client: {e}")
             })?;
