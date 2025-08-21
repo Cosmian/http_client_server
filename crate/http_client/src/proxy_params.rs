@@ -27,8 +27,11 @@ impl fmt::Debug for ProxyParams {
         f.debug_struct("ProxyParams")
             .field("url", &self.url)
             .field("basic_auth_username", &self.basic_auth_username)
-            .field("basic_auth_password", &self.basic_auth_password)
-            .field("custom_auth_header", &self.custom_auth_header)
+            .field(
+                "basic_auth_password",
+                &self.basic_auth_password.as_ref().map(|_| "REDACTED"),
+            )
+            .field("custom_auth_header", &self.custom_auth_header.as_ref().map(|_| "***REDACTED***"))
             .field("exclusion_list", &self.exclusion_list)
             .finish()
     }
