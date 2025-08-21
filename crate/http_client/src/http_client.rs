@@ -10,7 +10,7 @@ use reqwest::{
 };
 use rustls::{client::WebPkiVerifier, Certificate};
 use serde::{Deserialize, Serialize};
-use tracing::trace;
+use tracing::info;
 use x509_cert::{
     der::{DecodePem, Encode},
     Certificate as X509Certificate,
@@ -80,10 +80,12 @@ impl HttpClient {
     /// # Errors
     /// Will return an error if the client cannot be instantiated
     pub fn instantiate(http_conf: &HttpClientConfig) -> Result<Self, HttpClientError> {
+        // Ensure the server URL does not end with a slash
         let server_url = http_conf.server_url.strip_suffix('/').map_or_else(
             || http_conf.server_url.clone(),
             std::string::ToString::to_string,
         );
+        info!("Using server URL: {}", server_url);
 
         let mut headers = HeaderMap::new();
         if let Some(bearer_token) = http_conf.access_token.clone() {
@@ -142,10 +144,10 @@ impl HttpClient {
 
         // Configure the client with proxy settings if available
         if let Some(proxy_params) = &http_conf.proxy_params {
-            trace!("Configuring HTTP client with proxy parameters: {proxy_params:?}");
             let mut proxy = reqwest::Proxy::all(proxy_params.url.clone()).map_err(|e| {
                 http_client_error!("Failed to configure the HTTPS proxy for HTTP client: {e}")
             })?;
+
             if let Some(username) = &proxy_params.basic_auth_username {
                 proxy = proxy.basic_auth(
                     username,
@@ -165,16 +167,18 @@ impl HttpClient {
                     &proxy_params.exclusion_list.join(","),
                 ));
             }
+
+            info!("Overriding reqwest builder with proxy: {:?}", proxy);
             builder = builder.proxy(proxy);
         }
 
         // Build the client
         Ok(Self {
+            server_url,
             client: builder
                 .default_headers(headers)
                 .build()
                 .context("Reqwest client builder")?,
-            server_url,
         })
     }
 }
