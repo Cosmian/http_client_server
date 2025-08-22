@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-08-22
+
+### 🚀 Features
+
+- *(http_client)* Support HTTP forward proxy (#11)
+
 ## [0.3.1] - 2025-07-03
 
 ### 🚀 Features
