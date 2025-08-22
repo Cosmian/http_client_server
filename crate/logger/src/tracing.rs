@@ -1,10 +1,11 @@
-use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
-use std::path::PathBuf;
 use std::{
     env::set_var,
+    path::PathBuf,
     sync::atomic::{AtomicBool, Ordering},
 };
+
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
 use tracing::{debug, info, span, warn};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::{layer::SubscriberExt, reload, util::SubscriberInitExt, EnvFilter, Layer};

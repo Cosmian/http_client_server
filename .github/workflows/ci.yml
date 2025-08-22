@@ -1,0 +1,61 @@
+---
+name: Cargo lint
+
+on:
+  push:
+  workflow_call:
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
+  multi-os:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.87.0
+          components: rustfmt, clippy
+
+      - name: Tests all targets all features
+        run: cargo test --lib --workspace --all-targets --all-features
+
+  cargo-lint:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-lint.yml@develop
+    with:
+      toolchain: 1.87.0
+  cargo-fmt:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-fmt.yml@develop
+    with:
+      toolchain: nightly-2025-03-31
+  cargo-audit:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-audit.yml@develop
+    with:
+      toolchain: 1.87.0
+  cargo-machete:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-machete.yml@develop
+    with:
+      toolchain: 1.87.0
+  cargo-doc:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-doc.yml@develop
+    with:
+      toolchain: 1.87.0
+  cargo-semver:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-semver.yml@develop
+    with:
+      toolchain: 1.87.0
+  cargo-publish-workspace:
+    uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
+    with:
+      toolchain: 1.87.0
+    secrets:
+      token: ${{ secrets.CRATES_IO }}
