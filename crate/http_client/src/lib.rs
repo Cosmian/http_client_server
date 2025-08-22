@@ -30,7 +30,7 @@
     clippy::renamed_function_params,
     clippy::verbose_file_reads,
     clippy::str_to_string,
-    clippy::string_to_string,
+    clippy::implicit_clone,
     clippy::unreachable,
     clippy::as_conversions,
     clippy::print_stdout,
@@ -56,11 +56,13 @@
 pub use error::HttpClientError;
 pub use http_client::{HttpClient, HttpClientConfig};
 pub use login::{LoginState, Oauth2LoginConfig};
+pub use proxy_params::ProxyParams;
 
 pub mod authentication;
 mod certificate_verifier;
 mod error;
 mod http_client;
 mod login;
+mod proxy_params;
 #[cfg(test)]
 pub mod tests;

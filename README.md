@@ -40,9 +40,9 @@ To use these crates in your project, add them to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cosmian_http_client = { version = "0.3.1", features = ["session"] }
-cosmian_logger = "0.3.1"
-cosmian_config_utils = "0.3.1"
+cosmian_http_client = { version = "0.4.0", features = ["session"] }
+cosmian_logger = "0.4.0"
+cosmian_config_utils = "0.4.0"
 ```
 
 ## License
@@ -51,7 +51,7 @@ This project is licensed under the Business Source License 1.1 (BUSL-1.1).
 
 ## Repository
 
-https://github.com/Cosmian/http_client_server
+<https://github.com/Cosmian/http_client_server>
 
 ## Authors
 
