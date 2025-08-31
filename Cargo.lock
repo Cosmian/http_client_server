@@ -572,6 +572,7 @@ dependencies = [
  "actix-session",
  "actix-web",
  "anyhow",
+ "cosmian_logger",
  "derive_more 0.99.20",
  "oauth2",
  "reqwest 0.11.27",

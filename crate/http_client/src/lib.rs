@@ -64,5 +64,9 @@ mod error;
 mod http_client;
 mod login;
 mod proxy_params;
+
+pub mod reexport {
+    pub use reqwest;
+}
 #[cfg(test)]
 pub mod tests;
