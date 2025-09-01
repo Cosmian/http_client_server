@@ -1,0 +1,4 @@
+[submodule "test_data"]
+    path = test_data
+    url = https://github.com/Cosmian/test_data.git
+    branch = main

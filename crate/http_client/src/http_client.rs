@@ -1,27 +1,48 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    sync::Arc,
-};
-
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client, ClientBuilder, Identity,
+    Client,
 };
-use rustls::{client::WebPkiVerifier, Certificate};
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use x509_cert::{
-    der::{DecodePem, Encode},
-    Certificate as X509Certificate,
-};
 
 use crate::{
-    certificate_verifier::{LeafCertificateVerifier, NoVerifier},
-    error::{result::HttpClientResultHelper, HttpClientError},
-    http_client_error, Oauth2LoginConfig, ProxyParams,
+    error::{
+        result::{HttpClientResult, HttpClientResultHelper},
+        HttpClientError,
+    },
+    http_client_error,
+    tls::build_tls_client,
+    Oauth2LoginConfig, ProxyParams,
 };
 
+/// Configuration for the HTTP client
+///
+/// # Examples
+///
+/// ## Basic HTTP client
+/// ```rust
+/// use cosmian_http_client::HttpClientConfig;
+///
+/// let config = HttpClientConfig::default();
+/// ```
+///
+/// ## HTTP client with custom cipher suites
+/// ```rust
+/// use cosmian_http_client::HttpClientConfig;
+///
+/// let mut config = HttpClientConfig::default();
+/// config.cipher_suites = Some("TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256".to_string());
+/// ```
+///
+/// ## Supported cipher suites
+/// - TLS 1.3: `TLS_AES_256_GCM_SHA384`, `TLS_AES_128_GCM_SHA256`,
+///   `TLS_CHACHA20_POLY1305_SHA256`
+/// - TLS 1.2 ECDHE-ECDSA: `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384`,
+///   `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256`,
+///   `TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256`
+/// - TLS 1.2 ECDHE-RSA: `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`,
+///   `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`,
+///   `TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256`
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct HttpClientConfig {
     // accept_invalid_certs is useful if the cli needs to connect to an HTTPS server
@@ -44,6 +65,12 @@ pub struct HttpClientConfig {
     pub oauth2_conf: Option<Oauth2LoginConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proxy_params: Option<ProxyParams>,
+    /// Colon-separated list of cipher suites to use for TLS connections.
+    /// If not specified, rustls safe defaults will be used.
+    ///
+    /// Example: "`TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256`"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cipher_suites: Option<String>,
 }
 
 impl Default for HttpClientConfig {
@@ -58,6 +85,7 @@ impl Default for HttpClientConfig {
             ssl_client_pkcs12_password: None,
             oauth2_conf: None,
             proxy_params: None,
+            cipher_suites: None,
         }
     }
 }
@@ -98,78 +126,13 @@ impl HttpClient {
             headers.insert("DatabaseSecret", HeaderValue::from_str(&database_secret)?);
         }
 
-        // We deal with 4 scenarios:
-        // 1. HTTP: no TLS
-        // 2. HTTPS:
-        //
-        //      a) self-signed: we want to remove the verifications
-        //
-        //      b) signed in a tee context: we want to verify the /quote and then only
-        // accept the allowed          certificate -> For efficiency purpose,
-        // this verification is made outside          this call (async with the
-        // queries) Only the verified certificate is used here
-        //
-        //      c) signed in a non-tee context: we want classic TLS verification based
-        // on the root ca
-        let allowed_tee_tls_cert = if let Some(certificate) = &http_conf.verified_cert {
-            Some(Certificate(
-                X509Certificate::from_pem(certificate.as_bytes())?.to_der()?,
-            ))
-        } else {
-            None
-        };
+        // Build a TLS client builder with rustls backend compatible with TLS 1.3 and
+        // 1.2
+        let mut builder = build_tls_client(http_conf)?;
 
-        let builder = allowed_tee_tls_cert.map_or_else(
-            || ClientBuilder::new().danger_accept_invalid_certs(http_conf.accept_invalid_certs),
-            |certificate| build_tls_client_tee(certificate, http_conf.accept_invalid_certs),
-        );
-
-        // If a PKCS12 file is provided, use it to build the client
-        let mut builder = match http_conf.ssl_client_pkcs12_path.clone() {
-            Some(ssl_client_pkcs12) => {
-                let mut pkcs12 = BufReader::new(File::open(ssl_client_pkcs12)?);
-                let mut pkcs12_bytes = vec![];
-                pkcs12.read_to_end(&mut pkcs12_bytes)?;
-                let pkcs12 = Identity::from_pkcs12_der(
-                    &pkcs12_bytes,
-                    &http_conf
-                        .ssl_client_pkcs12_password
-                        .clone()
-                        .unwrap_or_default(),
-                )?;
-                builder.identity(pkcs12)
-            }
-            None => builder,
-        };
-
-        // Configure the client with proxy settings if available
+        // Apply proxy settings if configured
         if let Some(proxy_params) = &http_conf.proxy_params {
-            let mut proxy = reqwest::Proxy::all(proxy_params.url.clone()).map_err(|e| {
-                http_client_error!("Failed to configure the HTTPS proxy for HTTP client: {e}")
-            })?;
-
-            if let Some(username) = &proxy_params.basic_auth_username {
-                proxy = proxy.basic_auth(
-                    username,
-                    &proxy_params.basic_auth_password.clone().unwrap_or_default(),
-                );
-            } else if let Some(custom_auth_header) = &proxy_params.custom_auth_header {
-                proxy = proxy.custom_http_auth(HeaderValue::from_str(custom_auth_header).map_err(
-                    |e| {
-                        http_client_error!(
-                            "Failed to set custom HTTP auth header for HTTP client: {e}"
-                        )
-                    },
-                )?);
-            }
-            if !proxy_params.exclusion_list.is_empty() {
-                proxy = proxy.no_proxy(reqwest::NoProxy::from_string(
-                    &proxy_params.exclusion_list.join(","),
-                ));
-            }
-
-            info!("Overriding reqwest builder with proxy: {:?}", proxy);
-            builder = builder.proxy(proxy);
+            builder = configure_proxy(builder, proxy_params)?;
         }
 
         // Build the client
@@ -183,39 +146,31 @@ impl HttpClient {
     }
 }
 
-/// Build a `TLSClient` to use with a server running inside a tee.
-/// The TLS verification is the basic one but also includes the verification of
-/// the leaf certificate The TLS socket is mounted since the leaf certificate is
-/// exactly the same as the expected one.
-pub(crate) fn build_tls_client_tee(
-    leaf_cert: Certificate,
-    accept_invalid_certs: bool,
-) -> ClientBuilder {
-    let mut root_cert_store = rustls::RootCertStore::empty();
+fn configure_proxy(
+    mut client_builder: reqwest::ClientBuilder,
+    proxy_params: &ProxyParams,
+) -> HttpClientResult<reqwest::ClientBuilder> {
+    // Apply proxy settings if configured
+    let mut proxy = reqwest::Proxy::all(proxy_params.url.clone()).map_err(|e| {
+        http_client_error!("Failed to configure the HTTPS proxy for HTTP client: {e}")
+    })?;
 
-    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|trust_anchor| {
-        rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
-            trust_anchor.subject,
-            trust_anchor.spki,
-            trust_anchor.name_constraints,
-        )
-    });
-    root_cert_store.add_trust_anchors(trust_anchors);
+    if let Some(ref username) = proxy_params.basic_auth_username {
+        if let Some(ref password) = proxy_params.basic_auth_password {
+            proxy = proxy.basic_auth(username, password);
+        }
+    } else if let Some(custom_auth_header) = &proxy_params.custom_auth_header {
+        proxy = proxy.custom_http_auth(HeaderValue::from_str(custom_auth_header).map_err(|e| {
+            http_client_error!("Failed to set custom HTTP auth header for HTTP client: {e}")
+        })?);
+    }
+    if !proxy_params.exclusion_list.is_empty() {
+        proxy = proxy.no_proxy(reqwest::NoProxy::from_string(
+            &proxy_params.exclusion_list.join(","),
+        ));
+    }
 
-    let verifier = if accept_invalid_certs {
-        LeafCertificateVerifier::new(leaf_cert, Arc::new(NoVerifier))
-    } else {
-        LeafCertificateVerifier::new(
-            leaf_cert,
-            Arc::new(WebPkiVerifier::new(root_cert_store, None)),
-        )
-    };
-
-    let config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
-        .with_custom_certificate_verifier(Arc::new(verifier))
-        .with_no_client_auth();
-
-    // Create a client builder
-    Client::builder().use_preconfigured_tls(config)
+    info!("Overriding reqwest builder with proxy: {:?}", proxy);
+    client_builder = client_builder.proxy(proxy);
+    Ok(client_builder)
 }
