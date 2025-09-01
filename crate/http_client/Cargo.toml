@@ -42,4 +42,4 @@ x509-cert = "0.2.5"
 [dev-dependencies]
 actix-http = "3.6.0"
 anyhow = "1.0.99"
-cosmian_logger = { path = "../logger", version = "0.4.0" }
+cosmian_logger = { path = "../logger" }
