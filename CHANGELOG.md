@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2025-09-01
+
+### 🚀 Features
+
+- Allow tls ciphers (#12)
+- Support socks protocol in forward proxy (#12)
+
 ## [0.4.0] - 2025-08-22
 
 ### 🚀 Features
