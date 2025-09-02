@@ -67,23 +67,10 @@ pub(crate) fn build_tls_client(http_conf: &HttpClientConfig) -> HttpClientResult
         // Step 2: Handle custom cipher suites or default configuration
         match &http_conf.cipher_suites {
             Some(cipher_suites_str) => {
-                let cipher_suites = match parse_cipher_suites(cipher_suites_str) {
-                    Ok(suites) => suites,
-                    Err(e) => {
-                        tracing::error!("Failed to parse cipher suites: {}, using default", e);
-                        return Ok(ClientBuilder::new()
-                            .danger_accept_invalid_certs(http_conf.accept_invalid_certs));
-                    }
-                };
-
-                match build_tls_config(Some(&cipher_suites), http_conf.accept_invalid_certs) {
-                    Ok(config) => Client::builder().use_preconfigured_tls(config),
-                    Err(e) => {
-                        tracing::error!("Failed to build TLS config: {}, using default", e);
-                        ClientBuilder::new()
-                            .danger_accept_invalid_certs(http_conf.accept_invalid_certs)
-                    }
-                }
+                let cipher_suites = parse_cipher_suites(cipher_suites_str)?;
+                let config =
+                    build_tls_config(Some(&cipher_suites), http_conf.accept_invalid_certs)?;
+                Client::builder().use_preconfigured_tls(config)
             }
             None => {
                 // Default configuration
@@ -150,8 +137,9 @@ fn parse_cipher_suites(cipher_suites_str: &str) -> HttpClientResult<Vec<Supporte
                 Some(&rustls::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
             }
             _ => {
-                tracing::warn!("Unknown cipher suite: {}", suite_name);
-                None
+                return Err(HttpClientError::Default(format!(
+                    "Unknown cipher suite: {suite_name}"
+                )));
             }
         };
 
