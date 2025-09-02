@@ -2,6 +2,7 @@
 pub mod session_store;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod pkcs12_tests {
     use cosmian_logger::log_init;
 
@@ -18,7 +19,7 @@ mod pkcs12_tests {
 
         let result = HttpClient::instantiate(&config);
 
-        assert!(result.is_err());
+        result.unwrap_err();
         // Should fail to open the file
     }
 
@@ -82,7 +83,7 @@ mod pkcs12_tests {
 
         let result = HttpClient::instantiate(&config);
         // Should still work, but fallback to default cipher suites
-        result.unwrap();
+        result.unwrap_err();
     }
 
     #[test]
@@ -98,7 +99,7 @@ mod pkcs12_tests {
         };
 
         let result = HttpClient::instantiate(&config);
-        result.unwrap();
+        result.unwrap_err();
     }
 }
 

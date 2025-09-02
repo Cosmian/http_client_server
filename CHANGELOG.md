@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-09-02
+
+### 🐛 Bug Fixes
+
+- No default fallback when cipher suites are invalid (must fail). Fix http client tests with custom cipher suites (#13)
+
 ## [0.5.0] - 2025-09-01
 
 ### 🚀 Features

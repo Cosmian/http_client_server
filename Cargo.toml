@@ -3,7 +3,7 @@ members = ["crate/config_utils", "crate/logger", "crate/http_client"]
 resolver = "2"
 
 [workspace.package]
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 rust-version = "1.71.0"
 authors = [

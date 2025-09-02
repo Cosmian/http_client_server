@@ -97,7 +97,7 @@ const fn not(b: &bool) -> bool {
 
 /// A struct implementing some of the 50+ operations a KMIP client should
 /// implement: <https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=kmip>
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HttpClient {
     pub server_url: String,
     pub client: Client,
