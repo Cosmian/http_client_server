@@ -14,6 +14,10 @@ use crate::{otlp, LoggerError};
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 
+// ============================================================================
+// Configuration Types
+// ============================================================================
+
 #[derive(Debug, Default, Clone)]
 pub struct TracingConfig {
     /// The Name of the service using this config
@@ -62,6 +66,10 @@ pub struct TelemetryConfig {
     pub enable_metering: bool,
 }
 
+// ============================================================================
+// Logging Guards and Cleanup
+// ============================================================================
+
 #[derive(Default)]
 pub struct LoggingGuards {
     tracer_provider: Option<SdkTracerProvider>,
@@ -85,6 +93,10 @@ impl Drop for LoggingGuards {
         }
     }
 }
+
+// ============================================================================
+// Public Interface
+// ============================================================================
 
 /// Initialize the telemetry system
 ///
@@ -176,11 +188,56 @@ pub fn tracing_init(tracing_config: &TracingConfig) -> LoggingGuards {
     }
 }
 
+// ============================================================================
+// Internal Implementation
+// ============================================================================
+
+/// Configuration for fmt layer formatting options
+#[derive(Clone, Copy)]
+struct FmtConfig {
+    with_level: bool,
+    with_target: bool,
+    with_thread_ids: bool,
+    with_line_number: bool,
+    with_file: bool,
+    with_ansi: bool,
+}
+
+impl FmtConfig {
+    /// Standard fmt layer configuration with customizable ANSI colors
+    const fn standard(with_ansi: bool) -> Self {
+        Self {
+            with_level: true,
+            with_target: true,
+            with_thread_ids: true,
+            with_line_number: true,
+            with_file: true,
+            with_ansi,
+        }
+    }
+}
+
+/// Macro to apply standard fmt layer configuration
+macro_rules! configure_fmt_layer {
+    ($layer:expr, $config:expr) => {{
+        $layer
+            .with_level($config.with_level)
+            .with_target($config.with_target)
+            .with_thread_ids($config.with_thread_ids)
+            .with_line_number($config.with_line_number)
+            .with_file($config.with_file)
+            .with_ansi($config.with_ansi)
+    }};
+}
+
 fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
     let mut otel_guard = LoggingGuards::default();
     let mut layers = vec![];
 
     let filter = if config.otlp.is_some() {
+        // ========================================
+        // OTLP Filter Configuration
+        // ========================================
         // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
         // logging is properly suppressed. However, logs emitted by external components
         // (such as reqwest, tonic, etc.) are not suppressed as they do not propagate
@@ -206,24 +263,30 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
         );
         filter
     } else {
+        // ========================================
+        // Standard Filter Configuration
+        // ========================================
         // If no OTLP URL is provided, we can use the default filter
         let (filter, _reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
         filter
     };
 
+    // ========================================
+    // Stdout Logging Layer
+    // ========================================
     // Logging to stdout
     if !config.no_log_to_stdout {
-        let fmt_layer = tracing_subscriber::fmt::layer()
-            .with_level(true)
-            .with_target(true)
-            .with_thread_ids(true)
-            .with_line_number(true)
-            .with_file(true)
-            .with_ansi(config.with_ansi_colors) // Use ANSI colors if configured
-            .compact();
+        let fmt_layer = configure_fmt_layer!(
+            tracing_subscriber::fmt::layer(),
+            FmtConfig::standard(config.with_ansi_colors)
+        )
+        .compact();
         layers.push(fmt_layer.boxed());
     }
 
+    // ========================================
+    // File Logging Layer
+    // ========================================
     // Logging the rolling file appender
     if let Some((dir, name)) = &config.log_to_file {
         // create the logs directory if it does not exist
@@ -240,18 +303,17 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
         let (non_blocking_writer, guard) = tracing_appender::non_blocking(file_appender);
         otel_guard.rolling_appender_guard = Some(guard);
 
-        let fmt_layer = tracing_subscriber::fmt::layer()
-            .with_writer(non_blocking_writer)
-            .with_level(true)
-            .with_target(true)
-            .with_thread_ids(true)
-            .with_line_number(true)
-            .with_file(true)
-            .with_ansi(false) // Disable ANSI colors in file logs
-            .compact();
+        let fmt_layer = configure_fmt_layer!(
+            tracing_subscriber::fmt::layer().with_writer(non_blocking_writer),
+            FmtConfig::standard(false) // No ANSI colors for file logs
+        )
+        .compact();
         layers.push(fmt_layer.boxed());
     }
 
+    // ========================================
+    // Syslog Logging Layer (Unix only)
+    // ========================================
     // Logging to syslog
     #[cfg(not(target_os = "windows"))]
     if config.log_to_syslog {
@@ -259,18 +321,17 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
             std::borrow::Cow::Owned(std::ffi::CString::new(config.service_name.clone())?);
         let (options, facility) = Default::default();
         if let Some(syslog) = syslog_tracing::Syslog::new(identity, options, facility) {
-            let syslog_layer = tracing_subscriber::fmt::layer()
-                .with_writer(syslog)
-                .with_level(true)
-                .with_target(true)
-                .with_thread_ids(true)
-                .with_line_number(true)
-                .with_file(true)
-                .with_ansi(false);
+            let syslog_layer = configure_fmt_layer!(
+                tracing_subscriber::fmt::layer().with_writer(syslog),
+                FmtConfig::standard(false) // No ANSI colors for syslog
+            );
             layers.push(syslog_layer.boxed());
         }
     }
 
+    // ========================================
+    // OpenTelemetry Logging Layer
+    // ========================================
     // Logging to the OpenTelemetry collector
     if let Some(otlp_config) = &config.otlp {
         // The OpenTelemetry tracing provider
@@ -304,6 +365,9 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
         otel_guard.meter_provider = meter_provider;
     };
 
+    // ========================================
+    // Initialize Tracing Subscriber
+    // ========================================
     // Initialize the global tracing subscriber
     tracing_subscriber::registry()
         .with(filter)
