@@ -3,13 +3,12 @@
 macro_rules! __get_fn_name {
     () => {{
         let type_name = std::any::type_name_of_val(&|| {});
-        let parts: Vec<&str> = type_name.split("::").collect();
-        // Find the last element that is not "{{closure}}"
-        parts
-            .iter()
+        // Find the last element that is not "{{closure}}" using iterator-based approach
+        type_name
+            .split("::")
             .rev()
-            .find(|&&part| part != "{{closure}}")
-            .unwrap_or(&"unknown")
+            .find(|&part| part != "{{closure}}")
+            .unwrap_or("unknown")
             .to_string()
     }};
 }
