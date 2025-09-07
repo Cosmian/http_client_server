@@ -4,13 +4,20 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+#[cfg(feature = "full")]
 use opentelemetry::trace::TracerProvider;
+#[cfg(feature = "full")]
 use opentelemetry_sdk::{metrics::SdkMeterProvider, trace::SdkTracerProvider};
-use tracing::{debug, info, span, warn};
+#[cfg(feature = "full")]
+use tracing::debug;
+use tracing::{info, span, warn};
+#[cfg(feature = "full")]
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::{layer::SubscriberExt, reload, util::SubscriberInitExt, EnvFilter, Layer};
 
-use crate::{otlp, LoggerError};
+#[cfg(feature = "full")]
+use crate::otlp;
+use crate::LoggerError;
 
 static TRACING_SET: AtomicBool = AtomicBool::new(false);
 
@@ -25,7 +32,12 @@ pub struct TracingConfig {
     pub service_name: String,
 
     /// Use the OpenTelemetry provider
+    #[cfg(feature = "full")]
     pub otlp: Option<TelemetryConfig>,
+
+    /// Use the OpenTelemetry provider (requires tokio feature)
+    #[cfg(not(feature = "full"))]
+    pub otlp: Option<()>,
 
     /// Do not log to stdout
     pub no_log_to_stdout: bool,
@@ -48,6 +60,7 @@ pub struct TracingConfig {
     pub with_ansi_colors: bool,
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Default, Clone)]
 pub struct TelemetryConfig {
     /// The version of the service using this config
@@ -72,23 +85,28 @@ pub struct TelemetryConfig {
 
 #[derive(Default)]
 pub struct LoggingGuards {
+    #[cfg(feature = "full")]
     tracer_provider: Option<SdkTracerProvider>,
+    #[cfg(feature = "full")]
     meter_provider: Option<SdkMeterProvider>,
     rolling_appender_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
 }
 
 impl Drop for LoggingGuards {
     fn drop(&mut self) {
-        if let Some(tracer_provider) = &mut self.tracer_provider {
-            debug!("dropping OTLP tracer");
-            if let Err(err) = tracer_provider.shutdown() {
-                eprintln!("Trace provider shutdown error: {err:?}");
+        #[cfg(feature = "full")]
+        {
+            if let Some(tracer_provider) = &mut self.tracer_provider {
+                debug!("dropping OTLP tracer");
+                if let Err(err) = tracer_provider.shutdown() {
+                    eprintln!("Trace provider shutdown error: {err:?}");
+                }
             }
-        }
-        if let Some(meter_provider) = &mut self.meter_provider {
-            debug!("dropping OTLP meter");
-            if let Err(_err) = meter_provider.shutdown() {
-                // ignore the error
+            if let Some(meter_provider) = &mut self.meter_provider {
+                debug!("dropping OTLP meter");
+                if let Err(_err) = meter_provider.shutdown() {
+                    // ignore the error
+                }
             }
         }
     }
@@ -315,7 +333,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
     // Syslog Logging Layer (Unix only)
     // ========================================
     // Logging to syslog
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(all(not(target_os = "windows"), feature = "full"))]
     if config.log_to_syslog {
         let identity =
             std::borrow::Cow::Owned(std::ffi::CString::new(config.service_name.clone())?);
@@ -333,6 +351,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
     // OpenTelemetry Logging Layer
     // ========================================
     // Logging to the OpenTelemetry collector
+    #[cfg(feature = "full")]
     if let Some(otlp_config) = &config.otlp {
         // The OpenTelemetry tracing provider
         let otlp_provider = otlp::init_tracer_provider(
@@ -363,7 +382,15 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 
         otel_guard.tracer_provider = Some(otlp_provider);
         otel_guard.meter_provider = meter_provider;
-    };
+    }
+
+    #[cfg(not(feature = "full"))]
+    if config.otlp.is_some() {
+        eprintln!(
+            "Warning: OTLP configuration provided but opentelemetry feature is not enabled. \
+             Enable the 'opentelemetry' feature to use OpenTelemetry."
+        );
+    }
 
     // ========================================
     // Initialize Tracing Subscriber

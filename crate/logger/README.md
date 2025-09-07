@@ -1,5 +1,102 @@
 # Cosmian Logger
 
+A flexible logging crate that supports both synchronous and asynchronous environments.
+
+## Features
+
+- `tokio` (default): Enables async/tokio support and OpenTelemetry integration
+- Without `tokio`: Provides basic tracing functionality for synchronous applications
+
+⚠️ **Important**: If you need `TelemetryConfig`, you must enable the `tokio` feature:
+
+```toml
+[dependencies]
+cosmian_logger = { version = "0.5.1", features = ["tokio"] }
+```
+
+## Usage
+
+### With Tokio (Default)
+
+The default configuration includes full OpenTelemetry support:
+
+```toml
+[dependencies]
+cosmian_logger = "0.5.1"
+```
+
+```rust
+use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
+
+#[tokio::main]
+async fn main() {
+    let config = TracingConfig {
+        service_name: "my-service".to_string(),
+        otlp: Some(TelemetryConfig {
+            version: Some("1.0.0".to_string()),
+            environment: Some("production".to_string()),
+            otlp_url: "http://localhost:4317".to_string(),
+            enable_metering: true,
+        }),
+        no_log_to_stdout: false,
+        with_ansi_colors: true,
+        ..Default::default()
+    };
+
+    let _guard = tracing_init(&config);
+
+    tracing::info!("Application started");
+}
+```
+
+### Without Tokio
+
+For synchronous applications that don't need OpenTelemetry:
+
+```toml
+[dependencies]
+cosmian_logger = { version = "0.5.1", default-features = false }
+```
+
+```rust
+use cosmian_logger::{tracing_init, TracingConfig};
+
+fn main() {
+    let config = TracingConfig {
+        service_name: "my-sync-service".to_string(),
+        no_log_to_stdout: false,
+        with_ansi_colors: true,
+        // Note: otlp field is not available without tokio feature
+        ..Default::default()
+    };
+
+    let _guard = tracing_init(&config);
+
+    tracing::info!("Synchronous application started");
+}
+```
+
+## Logging Macros
+
+The crate provides logging macros that work with or without tokio:
+
+```rust
+use cosmian_logger::{info, debug, warn, error, trace};
+
+// Function name is automatically prefixed to log messages
+info!("Application initialized");
+debug!(user_id = 123, "Processing user request");
+warn!("Low memory warning");
+error!(error = %err, "Operation failed");
+```
+
+## Features Summary
+
+- **Basic logging**: stdout, file, and syslog support
+- **OpenTelemetry** (requires tokio): OTLP tracing and metrics
+- **Structured logging**: Multiple message patterns supported
+- **ANSI colors**: Configurable for interactive vs persistent outputs
+
 A versatile logging and tracing utility for Rust applications that provides:
 
 - Structured logging to stdout

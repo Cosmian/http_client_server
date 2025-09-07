@@ -15,6 +15,7 @@ pub enum LoggerError {
     IOError(String),
 }
 
+#[cfg(feature = "full")]
 impl From<opentelemetry_otlp::ExporterBuildError> for LoggerError {
     fn from(e: opentelemetry_otlp::ExporterBuildError) -> Self {
         Self::Otlp(e.to_string())
