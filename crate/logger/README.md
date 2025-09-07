@@ -4,25 +4,25 @@ A flexible logging crate that supports both synchronous and asynchronous environ
 
 ## Features
 
-- `tokio` (default): Enables async/tokio support and OpenTelemetry integration
-- Without `tokio`: Provides basic tracing functionality for synchronous applications
+- `full`: Enables complete functionality including OpenTelemetry integration, syslog support, and advanced tracing features
+- Without `full`: Provides basic tracing functionality for synchronous applications
 
-⚠️ **Important**: If you need `TelemetryConfig`, you must enable the `tokio` feature:
+⚠️ **Important**: If you need `TelemetryConfig` or OpenTelemetry functionality, you must enable the `full` feature:
 
 ```toml
 [dependencies]
-cosmian_logger = { version = "0.5.1", features = ["tokio"] }
+cosmian_logger = { version = "0.5.1", features = ["full"] }
 ```
 
 ## Usage
 
-### With Tokio (Default)
+### With Full Features
 
-The default configuration includes full OpenTelemetry support:
+For applications that need OpenTelemetry and advanced features:
 
 ```toml
 [dependencies]
-cosmian_logger = "0.5.1"
+cosmian_logger = { version = "0.5.1", features = ["full"] }
 ```
 
 ```rust
@@ -49,13 +49,13 @@ async fn main() {
 }
 ```
 
-### Without Tokio
+### Without Full Features (Basic Mode)
 
-For synchronous applications that don't need OpenTelemetry:
+For synchronous applications that only need basic logging:
 
 ```toml
 [dependencies]
-cosmian_logger = { version = "0.5.1", default-features = false }
+cosmian_logger = "0.5.1"
 ```
 
 ```rust
@@ -66,7 +66,7 @@ fn main() {
         service_name: "my-sync-service".to_string(),
         no_log_to_stdout: false,
         with_ansi_colors: true,
-        // Note: otlp field is not available without tokio feature
+        // Note: otlp field is not available without full feature
         ..Default::default()
     };
 
@@ -78,7 +78,7 @@ fn main() {
 
 ## Logging Macros
 
-The crate provides logging macros that work with or without tokio:
+The crate provides logging macros that work with or without the full feature:
 
 ```rust
 use cosmian_logger::{info, debug, warn, error, trace};
@@ -92,8 +92,9 @@ error!(error = %err, "Operation failed");
 
 ## Features Summary
 
-- **Basic logging**: stdout, file, and syslog support
-- **OpenTelemetry** (requires tokio): OTLP tracing and metrics
+- **Basic logging**: stdout, file, and structured logging support
+- **OpenTelemetry** (requires full feature): OTLP tracing and metrics
+- **Syslog support** (requires full feature): System log integration
 - **Structured logging**: Multiple message patterns supported
 - **ANSI colors**: Configurable for interactive vs persistent outputs
 
@@ -137,7 +138,12 @@ The `log_init` function accepts an optional log level string parameter:
 
 ## Advanced Configuration with OpenTelemetry
 
-For more advanced use cases with OpenTelemetry integration:
+For more advanced use cases with OpenTelemetry integration, enable the `full` feature:
+
+```toml
+[dependencies]
+cosmian_logger = { version = "0.5.1", features = ["full"] }
+```
 
 ```rust
 use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
@@ -158,6 +164,7 @@ async fn main() {
         #[cfg(not(target_os = "windows"))]
         log_to_syslog: true,
         rust_log: Some("debug".to_string()),
+        ..Default::default()
     };
 
     let _otel_guard = tracing_init(&config);
@@ -188,10 +195,12 @@ Then access the Jaeger UI at `http://localhost:16686`
 The `TracingConfig` struct supports:
 
 - `service_name`: Name of your service for tracing
-- `otlp`: OpenTelemetry configuration (optional)
+- `otlp`: OpenTelemetry configuration (only available with `full` feature)
 - `no_log_to_stdout`: Disable logging to stdout
-- `log_to_syslog`: Enable logging to system log
+- `log_to_syslog`: Enable logging to system log (only available with `full` feature)
 - `rust_log`: Log level configuration
+- `with_ansi_colors`: Enable ANSI colors in output
+- `log_to_file`: Optional file logging configuration
 
 ## In Tests
 
