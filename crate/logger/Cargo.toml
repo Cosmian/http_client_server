@@ -6,31 +6,46 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Logger init"
+description = "Logger helper"
+
+[[example]]
+name = "tracing_example"
+required-features = ["full"]
+
+[features]
+default = []
+full = [
+  "opentelemetry-otlp",
+  "opentelemetry-semantic-conventions",
+  "opentelemetry-stdout",
+  "opentelemetry_sdk",
+  "tracing-opentelemetry",
+  "syslog-tracing",
+]
 
 [dependencies]
 opentelemetry = { version = "0.29", features = ["trace", "metrics"] }
 opentelemetry-otlp = { version = "0.29", features = [
   "trace",
   "metrics",
-  "grpc-tonic",
   "integration-testing",
-] }
+  "grpc-tonic",
+], optional = true }
 opentelemetry-semantic-conventions = { version = "0.29", features = [
   "semconv_experimental",
-] }
-opentelemetry-stdout = { version = "0.29", features = ["trace", "metrics"] }
+], optional = true }
+opentelemetry-stdout = { version = "0.29", features = [
+  "trace",
+  "metrics",
+], optional = true }
 opentelemetry_sdk = { version = "0.29", default-features = false, features = [
   "trace",
-  "rt-tokio",
-] }
-syslog-tracing = "0.3"
+], optional = true }
+syslog-tracing = { version = "0.3", optional = true }
 thiserror = { workspace = true }
-tokio = { version = "1.47", features = ["full"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
-tracing-core = "0.1"
-tracing-opentelemetry = "0.30"
+tracing-opentelemetry = { version = "0.30", optional = true }
 tracing-subscriber = { workspace = true, features = [
   "env-filter",
   "fmt",
@@ -38,3 +53,4 @@ tracing-subscriber = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+tokio = { version = "1.47", features = ["rt-multi-thread", "macros"] }

@@ -13,6 +13,7 @@ use crate::{tracing_init, TracingConfig};
 ///   to `tracing_init`
 pub fn log_init(rust_log: Option<&str>) {
     let config = TracingConfig {
+        #[cfg(feature = "full")]
         otlp: None,
         service_name: String::new(),
         no_log_to_stdout: false,
