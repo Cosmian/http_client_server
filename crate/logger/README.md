@@ -11,7 +11,7 @@ A flexible logging crate that supports both synchronous and asynchronous environ
 
 ```toml
 [dependencies]
-cosmian_logger = { version = "0.5.1", features = ["full"] }
+cosmian_logger = { version = "0.5.2", features = ["full"] }
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ For applications that need OpenTelemetry and advanced features:
 
 ```toml
 [dependencies]
-cosmian_logger = { version = "0.5.1", features = ["full"] }
+cosmian_logger = { version = "0.5.2", features = ["full"] }
 ```
 
 ```rust
@@ -55,7 +55,7 @@ For synchronous applications that only need basic logging:
 
 ```toml
 [dependencies]
-cosmian_logger = "0.5.1"
+cosmian_logger = "0.5.2"
 ```
 
 ```rust
@@ -142,7 +142,7 @@ For more advanced use cases with OpenTelemetry integration, enable the `full` fe
 
 ```toml
 [dependencies]
-cosmian_logger = { version = "0.5.1", features = ["full"] }
+cosmian_logger = { version = "0.5.2", features = ["full"] }
 ```
 
 ```rust
