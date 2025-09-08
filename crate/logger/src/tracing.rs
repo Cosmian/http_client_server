@@ -35,10 +35,6 @@ pub struct TracingConfig {
     #[cfg(feature = "full")]
     pub otlp: Option<TelemetryConfig>,
 
-    /// Use the OpenTelemetry provider (requires tokio feature)
-    #[cfg(not(feature = "full"))]
-    pub otlp: Option<()>,
-
     /// Do not log to stdout
     pub no_log_to_stdout: bool,
 
@@ -252,41 +248,56 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
     let mut otel_guard = LoggingGuards::default();
     let mut layers = vec![];
 
-    let filter = if config.otlp.is_some() {
-        // ========================================
-        // OTLP Filter Configuration
-        // ========================================
-        // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
-        // logging is properly suppressed. However, logs emitted by external components
-        // (such as reqwest, tonic, etc.) are not suppressed as they do not propagate
-        // OpenTelemetry context. Until this issue is addressed
-        // (https://github.com/open-telemetry/opentelemetry-rust/issues/2877),
-        // filtering like this is the best way to suppress such logs.
-        //
-        // The filter levels are set as follows:
-        // - Allow `info` level and above by default.
-        // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`.
-        //
-        // Note: This filtering will also drop logs from these components even when
-        // they are used outside of the OTLP Exporter.
-        let (filter, _reload_handle) = reload::Layer::new(
-            EnvFilter::from_default_env()
-                .add_directive("hyper=error".parse()?)
-                .add_directive("tonic=error".parse()?)
-                .add_directive("tower::buffer=off".parse()?)
-                .add_directive("opentelemetry-otlp=off".parse()?)
-                .add_directive("opentelemetry_sdk=error".parse()?)
-                // .add_directive("reqwest=off".parse()?)
-                .add_directive("h2=off".parse()?),
-        );
-        filter
-    } else {
-        // ========================================
-        // Standard Filter Configuration
-        // ========================================
-        // If no OTLP URL is provided, we can use the default filter
-        let (filter, _reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
-        filter
+    // ========================================
+    // Filter Configuration
+    // ========================================
+    let filter = {
+        #[cfg(feature = "full")]
+        {
+            if config.otlp.is_some() {
+                // ========================================
+                // OTLP Filter Configuration
+                // ========================================
+                // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
+                // logging is properly suppressed. However, logs emitted by external components
+                // (such as reqwest, tonic, etc.) are not suppressed as they do not propagate
+                // OpenTelemetry context. Until this issue is addressed
+                // (https://github.com/open-telemetry/opentelemetry-rust/issues/2877),
+                // filtering like this is the best way to suppress such logs.
+                //
+                // The filter levels are set as follows:
+                // - Allow `info` level and above by default.
+                // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`.
+                //
+                // Note: This filtering will also drop logs from these components even when
+                // they are used outside of the OTLP Exporter.
+                let (filter, _reload_handle) = reload::Layer::new(
+                    EnvFilter::from_default_env()
+                        .add_directive("hyper=error".parse()?)
+                        .add_directive("tonic=error".parse()?)
+                        .add_directive("tower::buffer=off".parse()?)
+                        .add_directive("opentelemetry-otlp=off".parse()?)
+                        .add_directive("opentelemetry_sdk=error".parse()?)
+                        // .add_directive("reqwest=off".parse()?)
+                        .add_directive("h2=off".parse()?),
+                );
+                filter
+            } else {
+                // If no OTLP URL is provided, we can use the default filter
+                let (filter, _reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
+                filter
+            }
+        }
+
+        #[cfg(not(feature = "full"))]
+        {
+            // ========================================
+            // Standard Filter Configuration
+            // ========================================
+            // If no OTLP URL is provided, we can use the default filter
+            let (filter, _reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
+            filter
+        }
     };
 
     // ========================================
@@ -382,14 +393,6 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 
         otel_guard.tracer_provider = Some(otlp_provider);
         otel_guard.meter_provider = meter_provider;
-    }
-
-    #[cfg(not(feature = "full"))]
-    if config.otlp.is_some() {
-        eprintln!(
-            "Warning: OTLP configuration provided but opentelemetry feature is not enabled. \
-             Enable the 'opentelemetry' feature to use OpenTelemetry."
-        );
     }
 
     // ========================================
