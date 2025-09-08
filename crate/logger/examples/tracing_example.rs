@@ -1,8 +1,13 @@
+//! Example of how to use the tracing system
+//! cargo run --example tracing_example -p cosmian_logger --features full
+
+#[cfg(feature = "full")]
 use std::path::PathBuf;
 
+#[cfg(feature = "full")]
 use cosmian_logger::{tracing_init, TelemetryConfig, TracingConfig};
+#[cfg(feature = "full")]
 use tracing::span;
-use tracing_core::Level;
 
 /// Example of how to use the tracing system
 ///
@@ -13,6 +18,7 @@ use tracing_core::Level;
 /// -e COLLECTOR_OTLP_ENABLED=true -e LOG_LEVEL=debug \
 /// jaegertracing/jaeger:2.5.0
 /// ```
+#[cfg(feature = "full")]
 #[tokio::main]
 async fn main() {
     println!(
@@ -47,7 +53,7 @@ Make sure that Jaeger is started and running on localhost:4317:
     };
     let _otel_guard = tracing_init(&tracing);
 
-    let span = span!(Level::TRACE, "application");
+    let span = span!(tracing::Level::TRACE, "application");
     let _span_guard = span.enter();
 
     foo().await;
@@ -58,6 +64,12 @@ Make sure that Jaeger is started and running on localhost:4317:
     tracing::debug!("Tracing after second initialization attempt");
 }
 
+#[cfg(not(feature = "full"))]
+fn main() {
+    println!("Run with `--features full` to enable this example");
+}
+
+#[cfg(feature = "full")]
 async fn foo() {
     tracing::info!(
         monotonic_counter.foo = 1_u64,
