@@ -52,7 +52,7 @@ jobs:
   cargo-semver:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-semver.yml@develop
     with:
-      toolchain: 1.87.0
+      toolchain: 1.88.0
   cargo-publish-workspace:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
     with:
