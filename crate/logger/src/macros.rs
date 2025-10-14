@@ -128,8 +128,6 @@ macro_rules! trace {
 mod macro_tests {
     use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-    use crate::{debug, error, info, trace, warn};
-
     #[derive(Debug)]
     enum ObjectType {
         Document,
