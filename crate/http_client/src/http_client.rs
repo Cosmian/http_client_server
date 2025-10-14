@@ -77,7 +77,7 @@ impl Default for HttpClientConfig {
     fn default() -> Self {
         Self {
             accept_invalid_certs: false,
-            server_url: "http://0.0.0.0:9998".to_owned(),
+            server_url: "http://127.0.0.1:9998".to_owned(),
             verified_cert: None,
             access_token: None,
             database_secret: None,
