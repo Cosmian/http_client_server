@@ -104,6 +104,64 @@ mod pkcs12_tests {
 }
 
 #[cfg(test)]
+mod client_auth_constraints_tests {
+    use crate::{HttpClient, HttpClientConfig};
+
+    #[test]
+    fn test_error_when_both_pem_and_pkcs12_provided() {
+        let config = HttpClientConfig {
+            ssl_client_pkcs12_path: Some("/tmp/client.p12".to_owned()),
+            ssl_client_pkcs12_password: Some("password".to_owned()),
+            ssl_client_pem_cert_path: Some("/tmp/client.crt".to_owned()),
+            ssl_client_pem_key_path: Some("/tmp/client.key".to_owned()),
+            ..Default::default()
+        };
+
+        let result = HttpClient::instantiate(&config);
+        assert!(
+            result.is_err(),
+            "Should error when both PEM and PKCS#12 are set"
+        );
+    }
+
+    #[test]
+    fn test_error_when_only_pem_cert_provided() {
+        let config = HttpClientConfig {
+            ssl_client_pem_cert_path: Some("/tmp/client.crt".to_owned()),
+            ..Default::default()
+        };
+
+        let result = HttpClient::instantiate(&config);
+        assert!(result.is_err(), "Should error when PEM key is missing");
+    }
+
+    #[test]
+    fn test_error_when_only_pem_key_provided() {
+        let config = HttpClientConfig {
+            ssl_client_pem_key_path: Some("/tmp/client.key".to_owned()),
+            ..Default::default()
+        };
+
+        let result = HttpClient::instantiate(&config);
+        assert!(result.is_err(), "Should error when PEM cert is missing");
+    }
+
+    #[test]
+    fn test_error_when_pkcs12_without_password() {
+        let config = HttpClientConfig {
+            ssl_client_pkcs12_path: Some("/tmp/client.p12".to_owned()),
+            ..Default::default()
+        };
+
+        let result = HttpClient::instantiate(&config);
+        assert!(
+            result.is_err(),
+            "Should error when PKCS#12 password is missing"
+        );
+    }
+}
+
+#[cfg(test)]
 mod tls_version_tests {
     use crate::{HttpClient, HttpClientConfig};
 

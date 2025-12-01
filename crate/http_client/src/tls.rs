@@ -79,8 +79,31 @@ pub(crate) fn build_tls_client(http_conf: &HttpClientConfig) -> HttpClientResult
         }
     };
 
-    // Step 3: Handle PKCS12 client certificate if provided
-    let builder = if let Some(ssl_client_pkcs12) = &http_conf.ssl_client_pkcs12_path {
+    // Step 3: Handle client certificate authentication
+    // Prefer PEM (cert + key) if provided; otherwise fall back to PKCS#12
+    let builder = if let (Some(cert_path), Some(key_path)) = (
+        http_conf.ssl_client_pem_cert_path.as_deref(),
+        http_conf.ssl_client_pem_key_path.as_deref(),
+    ) {
+        let mut cert_reader = BufReader::new(File::open(cert_path)?);
+        let mut cert_bytes = vec![];
+        cert_reader.read_to_end(&mut cert_bytes)?;
+
+        let mut key_reader = BufReader::new(File::open(key_path)?);
+        let mut key_bytes = vec![];
+        key_reader.read_to_end(&mut key_bytes)?;
+
+        // Combine cert and key into a single PEM as expected by reqwest Identity
+        let mut pem = Vec::with_capacity(cert_bytes.len() + 1 + key_bytes.len());
+        pem.extend_from_slice(&cert_bytes);
+        if !pem.ends_with(b"\n") {
+            pem.push(b'\n');
+        }
+        pem.extend_from_slice(&key_bytes);
+
+        let identity = Identity::from_pem(&pem)?;
+        builder.identity(identity)
+    } else if let Some(ssl_client_pkcs12) = &http_conf.ssl_client_pkcs12_path {
         let mut pkcs12 = BufReader::new(File::open(ssl_client_pkcs12)?);
         let mut pkcs12_bytes = vec![];
         pkcs12.read_to_end(&mut pkcs12_bytes)?;
