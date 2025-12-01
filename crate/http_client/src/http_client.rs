@@ -59,6 +59,15 @@ pub struct HttpClientConfig {
     pub ssl_client_pkcs12_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssl_client_pkcs12_password: Option<String>,
+    /// Optional path to a client certificate in PEM format.
+    /// If provided along with `ssl_client_pem_key_path`, it will be used for
+    /// client authentication instead of PKCS#12.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssl_client_pem_cert_path: Option<String>,
+    /// Optional path to a client private key in PEM format.
+    /// Used together with `ssl_client_pem_cert_path` for client authentication.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssl_client_pem_key_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub database_secret: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -83,6 +92,8 @@ impl Default for HttpClientConfig {
             database_secret: None,
             ssl_client_pkcs12_path: None,
             ssl_client_pkcs12_password: None,
+            ssl_client_pem_cert_path: None,
+            ssl_client_pem_key_path: None,
             oauth2_conf: None,
             proxy_params: None,
             cipher_suites: None,
@@ -108,6 +119,34 @@ impl HttpClient {
     /// # Errors
     /// Will return an error if the client cannot be instantiated
     pub fn instantiate(http_conf: &HttpClientConfig) -> Result<Self, HttpClientError> {
+        // Validate client authentication configuration: either PKCS#12 (with password)
+        // or PEM (cert + key), but not both or partially provided
+        let pem_cert_set = http_conf.ssl_client_pem_cert_path.is_some();
+        let pem_key_set = http_conf.ssl_client_pem_key_path.is_some();
+        let pkcs12_set = http_conf.ssl_client_pkcs12_path.is_some();
+        let pkcs12_pwd_set = http_conf.ssl_client_pkcs12_password.is_some();
+
+        if (pem_cert_set || pem_key_set) && (pkcs12_set || pkcs12_pwd_set) {
+            return Err(HttpClientError::Default(
+                "Invalid configuration: cannot use both PKCS#12 and PEM client authentication"
+                    .to_owned(),
+            ));
+        }
+
+        if pem_cert_set ^ pem_key_set {
+            return Err(HttpClientError::Default(
+                "Invalid configuration: both PEM certificate and key paths must be provided"
+                    .to_owned(),
+            ));
+        }
+
+        if pkcs12_set && !pkcs12_pwd_set {
+            return Err(HttpClientError::Default(
+                "Invalid configuration: PKCS#12 password must be provided with PKCS#12 path"
+                    .to_owned(),
+            ));
+        }
+
         // Ensure the server URL does not end with a slash
         let server_url = http_conf.server_url.strip_suffix('/').map_or_else(
             || http_conf.server_url.clone(),
