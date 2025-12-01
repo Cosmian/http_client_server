@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2025-12-01
+
+### 🚀 Features
+
+- *(http_client)* Add PEM certificates support as PKCS#12 alternative (#16)
+
 ## [0.5.3] - 2025-10-14
 
 ### 🐛 Bug Fixes
