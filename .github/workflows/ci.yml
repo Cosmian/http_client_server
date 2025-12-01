@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.87.0
+          toolchain: 1.90.0
           components: rustfmt, clippy
 
       - name: Tests all targets all features
@@ -32,7 +32,7 @@ jobs:
   cargo-lint:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-lint.yml@develop
     with:
-      toolchain: 1.87.0
+      toolchain: 1.90.0
   cargo-fmt:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-fmt.yml@develop
     with:
@@ -40,15 +40,15 @@ jobs:
   cargo-audit:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-audit.yml@develop
     with:
-      toolchain: 1.87.0
+      toolchain: 1.90.0
   cargo-machete:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-machete.yml@develop
     with:
-      toolchain: 1.87.0
+      toolchain: 1.90.0
   cargo-doc:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-doc.yml@develop
     with:
-      toolchain: 1.87.0
+      toolchain: 1.90.0
   cargo-semver:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-semver.yml@develop
     with:
@@ -56,6 +56,6 @@ jobs:
   cargo-publish-workspace:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
     with:
-      toolchain: 1.87.0
+      toolchain: 1.90.0
     secrets:
       token: ${{ secrets.CRATES_IO }}
