@@ -76,16 +76,18 @@ mod pkcs12_tests {
     #[allow(clippy::unwrap_used)]
     fn test_http_client_with_invalid_cipher_suites() {
         // Test HTTP client with invalid cipher suites
-        // Invalid cipher suites should cause instantiation to fail or fall back to
-        // defaults
+        // parse_cipher_suites() will return an error for invalid suites,
+        // and build_tls_client() catches this error and falls back to default
+        // configuration
         let config = HttpClientConfig {
             cipher_suites: Some("INVALID_CIPHER_SUITE".to_owned()),
             ..Default::default()
         };
 
         let result = HttpClient::instantiate(&config);
-        // Should succeed with default cipher suites, logging an error about invalid
-        // suite
+        // Client instantiation succeeds by falling back to defaults (see tls.rs line
+        // 83-85) The error from parse_cipher_suites is logged and handled
+        // gracefully
         assert!(
             result.is_ok(),
             "Expected OK with fallback to defaults but got error: {:?}",
@@ -97,7 +99,9 @@ mod pkcs12_tests {
     #[allow(clippy::unwrap_used)]
     fn test_http_client_with_mixed_cipher_suites() {
         // Test with a mix of valid and invalid cipher suites
-        // When parsing fails due to invalid suite, should fall back to defaults
+        // parse_cipher_suites() returns an error when it encounters "INVALID_SUITE",
+        // triggering the fallback to defaults in build_tls_client() (see tls.rs line
+        // 83-85)
         let config = HttpClientConfig {
             cipher_suites: Some(
                 "TLS_AES_256_GCM_SHA384:INVALID_SUITE:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
@@ -107,8 +111,8 @@ mod pkcs12_tests {
         };
 
         let result = HttpClient::instantiate(&config);
-        // Should succeed with default cipher suites, logging an error about invalid
-        // suite
+        // Client instantiation succeeds by falling back to defaults
+        // The parsing error is logged but doesn't fail the overall instantiation
         assert!(
             result.is_ok(),
             "Expected OK with fallback to defaults but got error: {:?}",

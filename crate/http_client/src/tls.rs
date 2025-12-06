@@ -235,7 +235,9 @@ fn build_tls_config_with_verifier(
         (None, Some(store), Some(_)) => {
             // With custom cipher suites - need to use dangerous() first, then set roots
             // manually Install default crypto provider if not already set
-            drop(rustls::crypto::aws_lc_rs::default_provider().install_default());
+            if let Err(e) = rustls::crypto::aws_lc_rs::default_provider().install_default() {
+                tracing::debug!("Crypto provider already installed: {e:?}");
+            }
             let verifier = rustls::client::WebPkiServerVerifier::builder(Arc::new(store))
                 .build()
                 .map_err(|e| {
@@ -300,7 +302,9 @@ fn build_tls_client_tee(
     cipher_suites: Option<&str>,
 ) -> ClientBuilder {
     // Install default crypto provider if not already set
-    drop(rustls::crypto::aws_lc_rs::default_provider().install_default());
+    if let Err(e) = rustls::crypto::aws_lc_rs::default_provider().install_default() {
+        tracing::debug!("Crypto provider already installed: {e:?}");
+    }
 
     let mut root_cert_store = RootCertStore::empty();
     root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
