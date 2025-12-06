@@ -532,7 +532,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "cosmian_config_utils"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "base64 0.21.7",
  "serde",
@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "cosmian_http_client"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "actix-http",
  "actix-identity",
@@ -569,7 +569,7 @@ dependencies = [
 
 [[package]]
 name = "cosmian_logger"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
