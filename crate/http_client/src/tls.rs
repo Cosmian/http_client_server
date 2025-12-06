@@ -5,7 +5,10 @@ use std::{
 };
 
 use reqwest::{Client, ClientBuilder, Identity};
-use rustls::{client::WebPkiVerifier, Certificate, SupportedCipherSuite};
+use rustls::{
+    client::danger::ServerCertVerifier, pki_types::CertificateDer, RootCertStore,
+    SupportedCipherSuite,
+};
 use x509_cert::{
     der::{DecodePem, Encode},
     Certificate as X509Certificate,
@@ -57,26 +60,34 @@ use crate::{
 pub(crate) fn build_tls_client(http_conf: &HttpClientConfig) -> HttpClientResult<ClientBuilder> {
     // Step 1: Handle TEE certificate verification
     let builder = if let Some(certificate) = &http_conf.verified_cert {
-        let tee_cert = Certificate(X509Certificate::from_pem(certificate.as_bytes())?.to_der()?);
+        let tee_cert =
+            CertificateDer::from(X509Certificate::from_pem(certificate.as_bytes())?.to_der()?);
         build_tls_client_tee(
             tee_cert,
             http_conf.accept_invalid_certs,
             http_conf.cipher_suites.as_deref(),
         )
-    } else {
-        // Step 2: Handle custom cipher suites or default configuration
-        match &http_conf.cipher_suites {
-            Some(cipher_suites_str) => {
-                let cipher_suites = parse_cipher_suites(cipher_suites_str)?;
-                let config =
-                    build_tls_config(Some(&cipher_suites), http_conf.accept_invalid_certs)?;
-                Client::builder().use_preconfigured_tls(config)
+    } else if let Some(cipher_suites_str) = &http_conf.cipher_suites {
+        // Step 2: Handle custom cipher suites
+        match parse_cipher_suites(cipher_suites_str) {
+            Ok(cipher_suites) => {
+                match build_tls_config(Some(&cipher_suites), http_conf.accept_invalid_certs) {
+                    Ok(config) => Client::builder().use_preconfigured_tls(config),
+                    Err(e) => {
+                        tracing::error!("TLS config error: {e}, falling back to safe defaults");
+                        ClientBuilder::new()
+                            .danger_accept_invalid_certs(http_conf.accept_invalid_certs)
+                    }
+                }
             }
-            None => {
-                // Default configuration
+            Err(e) => {
+                tracing::error!("Cipher suite parsing error: {e}, falling back to safe defaults");
                 ClientBuilder::new().danger_accept_invalid_certs(http_conf.accept_invalid_certs)
             }
         }
+    } else {
+        // Default configuration
+        ClientBuilder::new().danger_accept_invalid_certs(http_conf.accept_invalid_certs)
     };
 
     // Step 3: Handle client certificate authentication
@@ -136,28 +147,32 @@ fn parse_cipher_suites(cipher_suites_str: &str) -> HttpClientResult<Vec<Supporte
     for suite_name in suite_names {
         // Map common cipher suite names to rustls cipher suites
         let cipher_suite = match suite_name.to_uppercase().as_str() {
-            "TLS_AES_256_GCM_SHA384" => Some(&rustls::cipher_suite::TLS13_AES_256_GCM_SHA384),
-            "TLS_AES_128_GCM_SHA256" => Some(&rustls::cipher_suite::TLS13_AES_128_GCM_SHA256),
+            "TLS_AES_256_GCM_SHA384" => {
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS13_AES_256_GCM_SHA384)
+            }
+            "TLS_AES_128_GCM_SHA256" => {
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS13_AES_128_GCM_SHA256)
+            }
             "TLS_CHACHA20_POLY1305_SHA256" => {
-                Some(&rustls::cipher_suite::TLS13_CHACHA20_POLY1305_SHA256)
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS13_CHACHA20_POLY1305_SHA256)
             }
             "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384" => {
-                Some(&rustls::cipher_suite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384)
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384)
             }
             "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256" => {
-                Some(&rustls::cipher_suite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
             }
-            "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256" => {
-                Some(&rustls::cipher_suite::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256)
-            }
+            "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256" => Some(
+                rustls::crypto::aws_lc_rs::cipher_suite::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+            ),
             "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" => {
-                Some(&rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
             }
             "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" => {
-                Some(&rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
             }
             "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256" => {
-                Some(&rustls::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
+                Some(rustls::crypto::aws_lc_rs::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
             }
             _ => {
                 return Err(HttpClientError::Default(format!(
@@ -167,7 +182,7 @@ fn parse_cipher_suites(cipher_suites_str: &str) -> HttpClientResult<Vec<Supporte
         };
 
         if let Some(suite) = cipher_suite {
-            selected_suites.push(*suite);
+            selected_suites.push(suite);
         }
     }
 
@@ -185,35 +200,73 @@ fn parse_cipher_suites(cipher_suites_str: &str) -> HttpClientResult<Vec<Supporte
 /// configuration for all scenarios
 fn build_tls_config_with_verifier(
     cipher_suites: Option<&[SupportedCipherSuite]>,
-    verifier: Option<Arc<dyn rustls::client::ServerCertVerifier>>,
-    root_cert_store: Option<rustls::RootCertStore>,
+    verifier: Option<Arc<dyn ServerCertVerifier>>,
+    root_cert_store: Option<RootCertStore>,
 ) -> HttpClientResult<rustls::ClientConfig> {
     let config_builder = match cipher_suites {
-        Some(suites) => rustls::ClientConfig::builder()
-            .with_cipher_suites(suites)
-            .with_safe_default_kx_groups()
-            .with_safe_default_protocol_versions() // This is needed for TLS 1.3 support
-            .map_err(|e| HttpClientError::Default(format!("TLS config error: {e}")))?,
-        None => rustls::ClientConfig::builder()
-            .with_cipher_suites(rustls::DEFAULT_CIPHER_SUITES)
-            .with_safe_default_kx_groups()
-            .with_safe_default_protocol_versions() // This is needed for TLS 1.3 support
-            .map_err(|e| HttpClientError::Default(format!("TLS config error: {e}")))?,
+        Some(suites) => rustls::ClientConfig::builder_with_provider(
+            rustls::crypto::CryptoProvider {
+                cipher_suites: suites.to_vec(),
+                ..rustls::crypto::aws_lc_rs::default_provider()
+            }
+            .into(),
+        )
+        .with_safe_default_protocol_versions()
+        .map_err(|e| HttpClientError::Default(format!("TLS config error: {e}")))?,
+        None => rustls::ClientConfig::builder(),
     };
-
-    let final_config = match (verifier, root_cert_store) {
+    let final_config = match (verifier, root_cert_store, cipher_suites) {
         // Custom verifier provided (TEE scenario)
-        (Some(custom_verifier), _) => config_builder
-            .with_custom_certificate_verifier(custom_verifier)
-            .with_no_client_auth(),
+        (Some(custom_verifier), _, Some(_)) => {
+            // With custom cipher suites
+            config_builder
+                .dangerous()
+                .with_custom_certificate_verifier(custom_verifier)
+                .with_no_client_auth()
+        }
+        (Some(custom_verifier), _, None) => {
+            // No custom cipher suites
+            rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(custom_verifier)
+                .with_no_client_auth()
+        }
         // Root certificate store provided (standard TLS)
-        (None, Some(store)) => config_builder
-            .with_root_certificates(store)
-            .with_no_client_auth(),
+        (None, Some(store), Some(_)) => {
+            // With custom cipher suites - need to use dangerous() first, then set roots
+            // manually Install default crypto provider if not already set
+            drop(rustls::crypto::aws_lc_rs::default_provider().install_default());
+            let verifier = rustls::client::WebPkiServerVerifier::builder(Arc::new(store))
+                .build()
+                .map_err(|e| {
+                    HttpClientError::Default(format!("Failed to build WebPkiServerVerifier: {e}"))
+                })?;
+            config_builder
+                .dangerous()
+                .with_custom_certificate_verifier(verifier)
+                .with_no_client_auth()
+        }
+        (None, Some(store), None) => {
+            // No custom cipher suites
+            rustls::ClientConfig::builder()
+                .with_root_certificates(store)
+                .with_no_client_auth()
+        }
         // No verification (accept invalid certs)
-        (None, None) => config_builder
-            .with_custom_certificate_verifier(Arc::new(NoVerifier))
-            .with_no_client_auth(),
+        (None, None, _) => {
+            let no_verifier = Arc::new(NoVerifier::new());
+            if cipher_suites.is_some() {
+                config_builder
+                    .dangerous()
+                    .with_custom_certificate_verifier(no_verifier)
+                    .with_no_client_auth()
+            } else {
+                rustls::ClientConfig::builder()
+                    .dangerous()
+                    .with_custom_certificate_verifier(no_verifier)
+                    .with_no_client_auth()
+            }
+        }
     };
 
     Ok(final_config)
@@ -231,14 +284,8 @@ fn build_tls_config(
         build_tls_config_with_verifier(cipher_suites, None, None)
     } else {
         // Standard TLS with root certificate verification
-        let mut root_cert_store = rustls::RootCertStore::empty();
-        root_cert_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
-            rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
-                ta.subject,
-                ta.spki,
-                ta.name_constraints,
-            )
-        }));
+        let mut root_cert_store = RootCertStore::empty();
+        root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
         build_tls_config_with_verifier(cipher_suites, None, Some(root_cert_store))
     }
 }
@@ -248,44 +295,48 @@ fn build_tls_config(
 /// the leaf certificate The TLS socket is mounted since the leaf certificate is
 /// exactly the same as the expected one.
 fn build_tls_client_tee(
-    leaf_cert: Certificate,
+    leaf_cert: CertificateDer<'static>,
     accept_invalid_certs: bool,
     cipher_suites: Option<&str>,
 ) -> ClientBuilder {
-    let mut root_cert_store = rustls::RootCertStore::empty();
-    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|trust_anchor| {
-        rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
-            trust_anchor.subject,
-            trust_anchor.spki,
-            trust_anchor.name_constraints,
-        )
-    });
-    root_cert_store.add_trust_anchors(trust_anchors);
+    // Install default crypto provider if not already set
+    drop(rustls::crypto::aws_lc_rs::default_provider().install_default());
 
-    let verifier = Arc::new(if accept_invalid_certs {
-        LeafCertificateVerifier::new(leaf_cert, Arc::new(NoVerifier))
+    let mut root_cert_store = RootCertStore::empty();
+    root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+
+    let default_verifier: Arc<dyn ServerCertVerifier> = if accept_invalid_certs {
+        Arc::new(NoVerifier::new())
     } else {
-        LeafCertificateVerifier::new(
-            leaf_cert,
-            Arc::new(WebPkiVerifier::new(root_cert_store, None)),
-        )
-    });
-
-    let cipher_suites = cipher_suites
-        .and_then(|cs| parse_cipher_suites(cs).ok())
-        .unwrap_or_else(|| rustls::DEFAULT_CIPHER_SUITES.to_vec());
-
-    let config =
-        match build_tls_config_with_verifier(Some(&cipher_suites), Some(verifier.clone()), None) {
-            Ok(config) => config,
+        match rustls::client::WebPkiServerVerifier::builder(Arc::new(root_cert_store.clone()))
+            .build()
+        {
+            Ok(verifier) => verifier,
             Err(e) => {
-                tracing::error!("TLS config error: {e}, falling back to safe defaults");
-                rustls::ClientConfig::builder()
-                    .with_safe_defaults()
-                    .with_custom_certificate_verifier(verifier)
-                    .with_no_client_auth()
+                tracing::error!("Failed to build WebPkiServerVerifier: {e}, using NoVerifier");
+                Arc::new(NoVerifier::new())
             }
-        };
+        }
+    };
+
+    let verifier = Arc::new(LeafCertificateVerifier::new(leaf_cert, default_verifier));
+
+    let cipher_suites_vec = cipher_suites.and_then(|cs| parse_cipher_suites(cs).ok());
+
+    let config = match build_tls_config_with_verifier(
+        cipher_suites_vec.as_deref(),
+        Some(verifier.clone()),
+        None,
+    ) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::error!("TLS config error: {e}, falling back to safe defaults");
+            rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(verifier)
+                .with_no_client_auth()
+        }
+    };
 
     // Create a client builder
     Client::builder().use_preconfigured_tls(config)

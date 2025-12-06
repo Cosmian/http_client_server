@@ -75,21 +75,29 @@ mod pkcs12_tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_http_client_with_invalid_cipher_suites() {
-        // Test HTTP client with invalid cipher suites (should fallback to defaults)
+        // Test HTTP client with invalid cipher suites
+        // Invalid cipher suites should cause instantiation to fail or fall back to
+        // defaults
         let config = HttpClientConfig {
             cipher_suites: Some("INVALID_CIPHER_SUITE".to_owned()),
             ..Default::default()
         };
 
         let result = HttpClient::instantiate(&config);
-        // Should still work, but fallback to default cipher suites
-        result.unwrap_err();
+        // Should succeed with default cipher suites, logging an error about invalid
+        // suite
+        assert!(
+            result.is_ok(),
+            "Expected OK with fallback to defaults but got error: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_http_client_with_mixed_cipher_suites() {
         // Test with a mix of valid and invalid cipher suites
+        // When parsing fails due to invalid suite, should fall back to defaults
         let config = HttpClientConfig {
             cipher_suites: Some(
                 "TLS_AES_256_GCM_SHA384:INVALID_SUITE:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
@@ -99,7 +107,13 @@ mod pkcs12_tests {
         };
 
         let result = HttpClient::instantiate(&config);
-        result.unwrap_err();
+        // Should succeed with default cipher suites, logging an error about invalid
+        // suite
+        assert!(
+            result.is_ok(),
+            "Expected OK with fallback to defaults but got error: {:?}",
+            result.err()
+        );
     }
 }
 
