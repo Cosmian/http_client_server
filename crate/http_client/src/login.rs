@@ -12,12 +12,11 @@ use actix_web::{
 use oauth2::{
     basic::BasicClient,
     http::{
-        self,
         header::{ACCEPT, CONTENT_TYPE},
         HeaderMap, HeaderValue, StatusCode,
     },
-    AuthUrl, ClientId, ClientSecret, CsrfToken, HttpRequest, PkceCodeChallenge, PkceCodeVerifier,
-    RedirectUrl, Scope, TokenUrl,
+    AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl,
+    Scope, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -91,14 +90,12 @@ impl TryFrom<Oauth2LoginConfig> for LoginState {
 
         // Create an OAuth2 client by specifying the client ID, client secret,
         // authorization URL and token URL.
-        let client = BasicClient::new(
-            ClientId::new(login_config.client_id.clone()),
-            Some(ClientSecret::new(login_config.client_secret.clone())),
-            AuthUrl::new(login_config.authorize_url.clone())?,
-            Some(TokenUrl::new(login_config.token_url.clone())?),
-        )
-        // Set the URL the user will be redirected to after the authorization process.
-        .set_redirect_uri(RedirectUrl::new(redirect_url.to_string())?);
+        let client = BasicClient::new(ClientId::new(login_config.client_id.clone()))
+            .set_client_secret(ClientSecret::new(login_config.client_secret.clone()))
+            .set_auth_uri(AuthUrl::new(login_config.authorize_url.clone())?)
+            .set_token_uri(TokenUrl::new(login_config.token_url.clone())?)
+            // Set the URL the user will be redirected to after the authorization process.
+            .set_redirect_uri(RedirectUrl::new(redirect_url.to_string())?);
 
         // Generate a PKCE challenge.
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -110,13 +107,13 @@ impl TryFrom<Oauth2LoginConfig> for LoginState {
             .collect::<Vec<_>>();
 
         // Generate the full authorization URL.
-        let (auth_url, csrf_token) = client
+        let auth_request = client
             .authorize_url(CsrfToken::new_random)
             // Set the desired scopes.
             .add_scopes(scopes)
             // Set the PKCE code challenge.
-            .set_pkce_challenge(pkce_challenge)
-            .url();
+            .set_pkce_challenge(pkce_challenge);
+        let (auth_url, csrf_token) = auth_request.url();
 
         // This is the URL you should redirect the user to,
         // in order to trigger the authorization process.
@@ -305,32 +302,29 @@ pub(crate) async fn request_token(
 
     let body = url::form_urlencoded::Serializer::new(String::new())
         .extend_pairs(params)
-        .finish()
-        .into_bytes();
+        .finish();
 
-    let request = HttpRequest {
-        url: Url::parse(&login_config.token_url)?,
-        method: http::method::Method::POST,
-        headers,
-        body,
-    };
-
-    let response = oauth2::reqwest::async_http_client(request)
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&login_config.token_url)
+        .header(ACCEPT, "application/json")
+        .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
         .await
         .map_err(|e| {
             HttpClientError::Default(format!("failed issuing token exchange request: {e:?}"))
         })?;
 
-    if response.status_code != StatusCode::OK {
-        http_client_bail!(
-            "failed token exchange: {}",
-            String::from_utf8_lossy(response.body.as_slice())
-        )
+    if response.status() != StatusCode::OK {
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "<failed to read response>".to_owned());
+        http_client_bail!("failed token exchange: {error_text}")
     }
 
-    let response_body = response.body.as_slice();
-
-    serde_json::from_slice(response_body).map_err(|e| {
+    response.json().await.map_err(|e| {
         HttpClientError::Default(format!("failed parsing token exchange response: {e:?}"))
     })
 }
