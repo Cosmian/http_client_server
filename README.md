@@ -40,9 +40,9 @@ To use these crates in your project, add them to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cosmian_http_client = { version = "0.5.5", features = ["session"] }
-cosmian_logger = "0.5.5"
-cosmian_config_utils = "0.5.5"
+cosmian_http_client = { version = "0.6.0", features = ["session"] }
+cosmian_logger = "0.6.0"
+cosmian_config_utils = "0.6.0"
 ```
 
 ## License
