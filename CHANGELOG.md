@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2025-12-06
+
+### ⚙️ Miscellaneous Tasks
+
+- Update http client deps (#17)
+
 ## [0.5.4] - 2025-12-01
 
 ### 🚀 Features
