@@ -6,13 +6,6 @@ on:
   workflow_call:
 
 jobs:
-  audit:
-    name: Security Audit
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
-
   multi-os:
     strategy:
       matrix:
@@ -36,7 +29,7 @@ jobs:
   cargo-fmt:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-fmt.yml@develop
     with:
-      toolchain: nightly-2025-03-31
+      toolchain: 1.90.0
   cargo-audit:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-audit.yml@develop
     with:
@@ -52,7 +45,7 @@ jobs:
   cargo-semver:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-semver.yml@develop
     with:
-      toolchain: 1.88.0
+      toolchain: 1.90.0
   cargo-publish-workspace:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
     with:

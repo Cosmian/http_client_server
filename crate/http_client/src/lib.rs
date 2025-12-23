@@ -59,7 +59,6 @@ pub use login::{LoginState, Oauth2LoginConfig};
 pub use proxy_params::ProxyParams;
 
 pub mod authentication;
-mod certificate_verifier;
 mod error;
 mod http_client;
 mod login;
