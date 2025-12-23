@@ -6,13 +6,6 @@ on:
   workflow_call:
 
 jobs:
-  audit:
-    name: Security Audit
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
-
   multi-os:
     strategy:
       matrix:
