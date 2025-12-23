@@ -36,7 +36,7 @@ jobs:
   cargo-fmt:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-fmt.yml@develop
     with:
-      toolchain: nightly-2025-03-31
+      toolchain: 1.90.0
   cargo-audit:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-audit.yml@develop
     with:
@@ -52,7 +52,7 @@ jobs:
   cargo-semver:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-semver.yml@develop
     with:
-      toolchain: 1.88.0
+      toolchain: 1.90.0
   cargo-publish-workspace:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-publish-workspace.yml@develop
     with:
