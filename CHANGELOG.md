@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2025-12-23
+
+### 🚀 Features
+
+- *(http_client)* Replace rustls with native-tls for FIPS 140-3 compliance
+
+### ⚠️ Breaking Changes
+
+- *(http_client)* Removed TEE (Trusted Execution Environment) certificate verification support (rustls-specific feature incompatible with native-tls)
+- *(http_client)* Removed client-side custom cipher suite configuration (not supported by native-tls; server-side configuration remains available)
+- *(http_client)* Now requires OpenSSL library at runtime for FIPS compliance
+
 ## [0.6.0] - 2025-12-06
 
 ### ⚙️ Miscellaneous Tasks

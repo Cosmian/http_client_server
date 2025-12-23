@@ -75,7 +75,9 @@ pub struct HttpClientConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proxy_params: Option<ProxyParams>,
     /// Colon-separated list of cipher suites to use for TLS connections.
-    /// If not specified, rustls safe defaults will be used.
+    /// Note: Custom cipher suites are not supported with native-tls.
+    /// Server-side cipher suite configuration is available through server
+    /// configuration.
     ///
     /// Example: "`TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256`"
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -165,8 +167,8 @@ impl HttpClient {
             headers.insert("DatabaseSecret", HeaderValue::from_str(&database_secret)?);
         }
 
-        // Build a TLS client builder with rustls backend compatible with TLS 1.3 and
-        // 1.2
+        // Build a TLS client builder with native-tls backend compatible with TLS 1.3
+        // and 1.2
         let mut builder = build_tls_client(http_conf)?;
 
         // Apply proxy settings if configured

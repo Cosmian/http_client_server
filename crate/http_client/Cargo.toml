@@ -14,6 +14,7 @@ description = "HTTP client with multi-authentication support"
 doctest = false
 
 [features]
+default = []
 session = ["dep:actix-identity", "dep:actix-session"]
 
 [dependencies]
@@ -21,22 +22,25 @@ actix-identity = { version = "0.9", optional = true }
 actix-session = { version = "0.11", optional = true }
 actix-web = { version = "4.9", features = ["macros"] }
 derive_more = { version = "2.1", features = ["deref", "deref_mut"] }
-oauth2 = { version = "5.0", features = ["reqwest"] }
-reqwest = { version = "0.12", features = [
-  "default",
+# Disable default features to avoid pulling in rustls
+# The "reqwest" feature will still use our reqwest dependency (with native-tls only)
+oauth2 = { version = "5.0", default-features = false, features = ["reqwest"] }
+# For FIPS compliance: use only native-tls (OpenSSL), not rustls (AWS-LC)
+# Removed "default" (includes rustls) and "rustls-tls" to avoid conflicts
+# Need "blocking" for Identity::from_pem
+reqwest = { version = "0.12", default-features = false, features = [
   "json",
-  "rustls-tls",
   "native-tls",
   "socks",
+  "http2",
+  "macos-system-configuration",
 ] }
-rustls = { version = "0.23", features = ["aws-lc-rs"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "1.47", features = ["full"] }
 tracing = "0.1"
 url = "2.5"
-webpki-roots = "1.0"
 x509-cert = "0.2.5"
 
 [dev-dependencies]
