@@ -44,13 +44,17 @@ opentelemetry_sdk = { version = "0.29", default-features = false, features = [
 syslog-tracing = { version = "0.3", optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-tracing-appender = { workspace = true }
 tracing-opentelemetry = { version = "0.30", optional = true }
 tracing-subscriber = { workspace = true, features = [
   "env-filter",
   "fmt",
   "ansi",
 ] }
+
+# tracing-appender uses the `symlink` crate for file rotation which does not compile on
+# wasm32-unknown-unknown. Gate it to native targets only.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing-appender = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1.47", features = ["rt-multi-thread", "macros"] }
