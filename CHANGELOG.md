@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-06-19
+
+### 🐛 Bug Fixes
+
+- *(logger)* Gate tracing-appender behind cfg(not(wasm32)) for WASM compatibility
+
 ## [0.7.0] - 2025-12-23
 
 ### 🚀 Features

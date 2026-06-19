@@ -85,6 +85,7 @@ pub struct LoggingGuards {
     tracer_provider: Option<SdkTracerProvider>,
     #[cfg(feature = "full")]
     meter_provider: Option<SdkMeterProvider>,
+    #[cfg(not(target_arch = "wasm32"))]
     rolling_appender_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
 }
 
@@ -317,6 +318,8 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
     // File Logging Layer
     // ========================================
     // Logging the rolling file appender
+    // tracing-appender uses the `symlink` crate which is not available on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     if let Some((dir, name)) = &config.log_to_file {
         // create the logs directory if it does not exist
         if !dir.exists() {

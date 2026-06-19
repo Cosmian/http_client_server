@@ -17,7 +17,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! cosmian_logger = { version = "0.7.0", features = ["full"] }
+//! cosmian_logger = { version = "X.Y.Z", features = ["full"] }
 //! ```
 //!
 //! If you get an error like "no `TelemetryConfig` in the root", it means you
