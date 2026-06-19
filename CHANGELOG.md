@@ -8,6 +8,12 @@ All notable changes to this project will be documented in this file.
 
 - *(logger)* Gate tracing-appender behind cfg(not(wasm32)) for WASM compatibility
 
+## [5.7.1] - 2026-05-09
+
+### 🚀 Features
+
+- *(logger)* Strip correctly function name in get_fn_name macro
+
 ## [0.7.0] - 2025-12-23
 
 ### 🚀 Features

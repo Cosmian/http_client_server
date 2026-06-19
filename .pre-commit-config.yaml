@@ -140,8 +140,11 @@ repos:
       - id: clippy-all-targets
       - id: nightly-cargo-format # in last du to clippy fixes
 
-  - repo: https://github.com/EmbarkStudios/cargo-deny
-    rev: 0.18.9
+  - repo: local
     hooks:
       - id: cargo-deny
-        args: [--all-features, check]
+        name: cargo deny check
+        entry: cargo deny check
+        language: system
+        pass_filenames: false
+        always_run: true
