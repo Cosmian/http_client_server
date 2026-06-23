@@ -409,3 +409,49 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 
     Ok(otel_guard)
 }
+
+// ============================================================================
+// Kubernetes / Cloud-native convenience initializer
+// ============================================================================
+
+/// Initialize tracing for Kubernetes deployments using standard OpenTelemetry
+/// environment variables.
+///
+/// Reads the following environment variables:
+/// - `OTEL_SERVICE_NAME`: the service name reported to the collector
+///   (falls back to `default_service_name`).
+/// - `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP gRPC endpoint (e.g.
+///   `http://otel-collector:4317`). When set, OTLP traces and metrics are
+///   exported. When absent, only stdout logging is enabled.
+///
+/// Returns a [`LoggingGuards`] that **must be kept alive** for the duration of
+/// the process (dropping it flushes and shuts down the OTLP pipeline).
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[tokio::main]
+/// async fn main() {
+///     let _guards = cosmian_logger::init_tracing("my-service")
+///         .expect("failed to initialize tracing");
+///     tracing::info!("service started");
+/// }
+/// ```
+#[cfg(feature = "full")]
+pub fn init_tracing(default_service_name: &str) -> LoggingGuards {
+    let service_name = std::env::var("OTEL_SERVICE_NAME")
+        .unwrap_or_else(|_| default_service_name.to_owned());
+
+    let otlp = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .ok()
+        .map(|url| TelemetryConfig {
+            otlp_url: url,
+            ..Default::default()
+        });
+
+    tracing_init(&TracingConfig {
+        service_name,
+        otlp,
+        ..Default::default()
+    })
+}

@@ -33,6 +33,8 @@ pub use error::LoggerError;
 pub use log_utils::log_init;
 #[cfg(feature = "full")]
 pub use tracing::TelemetryConfig;
+#[cfg(feature = "full")]
+pub use tracing::init_tracing;
 pub use tracing::{tracing_init, LoggingGuards, TracingConfig};
 
 /// Re-exported dependencies for use with the logging macros
