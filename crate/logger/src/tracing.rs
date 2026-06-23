@@ -446,6 +446,8 @@ pub fn tracing_init_from_env(default_service_name: &str) -> LoggingGuards {
 
     let otlp = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
         .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
         .map(|url| TelemetryConfig {
             otlp_url: url,
             ..Default::default()
