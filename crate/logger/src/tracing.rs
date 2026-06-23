@@ -438,8 +438,11 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 /// ```
 #[cfg(feature = "full")]
 pub fn tracing_init_from_env(default_service_name: &str) -> LoggingGuards {
-    let service_name =
-        std::env::var("OTEL_SERVICE_NAME").unwrap_or_else(|_| default_service_name.to_owned());
+    let service_name = std::env::var("OTEL_SERVICE_NAME")
+        .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| default_service_name.to_owned());
 
     let otlp = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
         .ok()
