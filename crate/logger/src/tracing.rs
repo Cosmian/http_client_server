@@ -421,8 +421,9 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 /// - `OTEL_SERVICE_NAME`: the service name reported to the collector
 ///   (falls back to `default_service_name`).
 /// - `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP gRPC endpoint (e.g.
-///   `http://otel-collector:4317`). When set, OTLP traces and metrics are
-///   exported. When absent, only stdout logging is enabled.
+///   `http://otel-collector:4317`). When set, OTLP traces are
+///   exported. (Metrics export depends on `TelemetryConfig::enable_metering`,
+///   which defaults to false.) When absent, only stdout logging is enabled.
 ///
 /// Returns a [`LoggingGuards`] that **must be kept alive** for the duration of
 /// the process (dropping it flushes and shuts down the OTLP pipeline).
