@@ -437,6 +437,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 /// }
 /// ```
 #[cfg(feature = "full")]
+#[must_use]
 pub fn tracing_init_from_env(default_service_name: &str) -> LoggingGuards {
     let service_name = std::env::var("OTEL_SERVICE_NAME")
         .ok()
