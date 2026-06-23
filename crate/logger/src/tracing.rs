@@ -432,8 +432,7 @@ fn tracing_init_(config: &TracingConfig) -> Result<LoggingGuards, LoggerError> {
 /// ```rust,ignore
 /// #[tokio::main]
 /// async fn main() {
-///     let _guards = cosmian_logger::init_tracing("my-service")
-///         .expect("failed to initialize tracing");
+///     let _guards = cosmian_logger::init_tracing("my-service");
 ///     tracing::info!("service started");
 /// }
 /// ```
