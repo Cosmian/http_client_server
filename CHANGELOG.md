@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-06-24
+
+### 🚀 Features
+
+- *(logger)* Add init_tracing() for Kubernetes OTLP deployments (v0.8.0) (#21)
+
 ## [0.7.2] - 2026-06-19
 
 ### 🐛 Bug Fixes
