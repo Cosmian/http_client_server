@@ -166,7 +166,7 @@ use shared_logging::info;
 
 fn process_request(id: u64) {
     info!("processing request {id}");
-    // emits: INFO [process_request] processing request 42
+    // emits a `fn_name=process_request` structured field alongside the message (formatting depends on subscriber)
 }
 ```
 
