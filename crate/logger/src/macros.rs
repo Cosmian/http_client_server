@@ -1,6 +1,15 @@
-//! Logging macros that prefix each message with the calling function name.
+//! Logging macros that annotate each event with a `fn_name` structured field.
+//!
+//! The full tracing field syntax is preserved: `target:`, `?field`, `%field`,
+//! named fields (`key = value`), and positional format strings all work
+//! exactly as they do with the bare `tracing::` macros.
+//! A `fn_name` structured field is automatically injected so that every log
+//! event carries the name of the emitting function, which is visible in
+//! structured back-ends (OTLP, JSON) and standard `tracing-subscriber` output.
 
 /// Helper: extract the current function name at compile time.
+///
+/// Returns `&'static str` — the last path segment of the calling function.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __fn_name {
@@ -20,41 +29,92 @@ macro_rules! __fn_name {
                 None => trimmed,
             }
         }
-        _strip(std::any::type_name_of_val(&_f))
+        _strip(::std::any::type_name_of_val(&_f))
     }};
 }
 
+/// Emit a `tracing::info!` event, automatically adding a `fn_name` field.
+///
+/// All standard tracing field syntax is supported:
+/// ```rust,ignore
+/// info!("plain message");
+/// info!("format {}", value);
+/// info!(target: "my_target", "message");
+/// info!(key = %value, "message");
+/// info!(?err, "import failed");
+/// ```
 #[macro_export]
 macro_rules! info {
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::info!("[{}] {}", $crate::__fn_name!(), format_args!($($arg)*))
+    // `target:` must remain the first token — inject fn_name right after it.
+    (target: $target:expr, $($rest:tt)*) => {
+        $crate::reexport::tracing::info!(
+            target: $target,
+            fn_name = $crate::__fn_name!(),
+            $($rest)*
+        )
+    };
+    // All other syntax (plain message, structured fields, ?field, %field …).
+    ($($rest:tt)*) => {
+        $crate::reexport::tracing::info!(fn_name = $crate::__fn_name!(), $($rest)*)
     };
 }
 
+/// Emit a `tracing::debug!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::debug!("[{}] {}", $crate::__fn_name!(), format_args!($($arg)*))
+    (target: $target:expr, $($rest:tt)*) => {
+        $crate::reexport::tracing::debug!(
+            target: $target,
+            fn_name = $crate::__fn_name!(),
+            $($rest)*
+        )
+    };
+    ($($rest:tt)*) => {
+        $crate::reexport::tracing::debug!(fn_name = $crate::__fn_name!(), $($rest)*)
     };
 }
 
+/// Emit a `tracing::warn!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! warn {
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::warn!("[{}] {}", $crate::__fn_name!(), format_args!($($arg)*))
+    (target: $target:expr, $($rest:tt)*) => {
+        $crate::reexport::tracing::warn!(
+            target: $target,
+            fn_name = $crate::__fn_name!(),
+            $($rest)*
+        )
+    };
+    ($($rest:tt)*) => {
+        $crate::reexport::tracing::warn!(fn_name = $crate::__fn_name!(), $($rest)*)
     };
 }
 
+/// Emit a `tracing::error!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! error {
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::error!("[{}] {}", $crate::__fn_name!(), format_args!($($arg)*))
+    (target: $target:expr, $($rest:tt)*) => {
+        $crate::reexport::tracing::error!(
+            target: $target,
+            fn_name = $crate::__fn_name!(),
+            $($rest)*
+        )
+    };
+    ($($rest:tt)*) => {
+        $crate::reexport::tracing::error!(fn_name = $crate::__fn_name!(), $($rest)*)
     };
 }
 
+/// Emit a `tracing::trace!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! trace {
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::trace!("[{}] {}", $crate::__fn_name!(), format_args!($($arg)*))
+    (target: $target:expr, $($rest:tt)*) => {
+        $crate::reexport::tracing::trace!(
+            target: $target,
+            fn_name = $crate::__fn_name!(),
+            $($rest)*
+        )
+    };
+    ($($rest:tt)*) => {
+        $crate::reexport::tracing::trace!(fn_name = $crate::__fn_name!(), $($rest)*)
     };
 }
