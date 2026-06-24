@@ -34,3 +34,10 @@ tracing-subscriber = { workspace = true, features = [
 # tracing-appender uses platform-specific file rotation that does not compile on wasm32.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-appender = { workspace = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[[example]]
+name = "tracing_example"
+required-features = ["full"]

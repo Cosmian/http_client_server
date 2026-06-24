@@ -14,8 +14,11 @@
 #[macro_export]
 macro_rules! __fn_name {
     () => {{
-        // `type_name_of_val` on a nested closure yields a path ending in
-        // `::{{closure}}`. We strip that suffix and extract the last segment.
+        // Define a nested function `_f` inside the calling function.
+        // `std::any::type_name_of_val(&_f)` yields the full path of `_f`,
+        // e.g. `my_crate::module::calling_fn::_f`.
+        // We strip the trailing `::_f` segment and then take the last `::`
+        // segment to obtain the enclosing function name.
         fn _f() {}
         fn _strip(name: &str) -> &str {
             // Remove `::_f` suffix
