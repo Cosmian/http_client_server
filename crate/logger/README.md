@@ -15,7 +15,7 @@ Alloy → Loki / Tempo / Prometheus pipeline.
 |-----|----------|
 | [`tracing_init`] | Full-featured init driven by a `TracingConfig` struct: stdout, syslog, rolling files, and OTLP. Used by long-running services with rich operator configuration. |
 | [`init_tracing`] | Lightweight init driven by two environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`). Used by minimal daemons and jobs. |
-| `info!` / `debug!` / `warn!` / `error!` / `trace!` | Drop-in replacements for the `tracing` macros that automatically prefix each message with the calling function name. |
+| `info!` / `debug!` / `warn!` / `error!` / `trace!` | Drop-in replacements for the `tracing` macros that automatically add a `fn_name` structured field to each event. |
 
 ### Signal pipeline
 
