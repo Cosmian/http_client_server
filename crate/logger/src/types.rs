@@ -85,5 +85,17 @@ impl TelemetryGuards {
 pub struct LoggingGuards {
     pub(crate) _tracer_provider: Option<SdkTracerProvider>,
     pub(crate) _meter_provider: Option<SdkMeterProvider>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) _rolling_appender_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
+}
+
+impl Drop for LoggingGuards {
+    fn drop(&mut self) {
+        if let Some(tp) = self._tracer_provider.take() {
+            let _ = tp.shutdown();
+        }
+        if let Some(mp) = self._meter_provider.take() {
+            let _ = mp.shutdown();
+        }
+    }
 }

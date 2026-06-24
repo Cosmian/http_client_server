@@ -136,7 +136,12 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     };
 
     // --- rolling file layer ---
+    // tracing-appender uses platform-specific file rotation support and does not compile on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     let file_layer = config.log_to_file.as_ref().map(|(dir, name)| {
+        if !dir.exists() {
+            let _ = std::fs::create_dir_all(dir);
+        }
         let appender = tracing_appender::rolling::daily(dir, name);
         let (non_blocking, guard) = tracing_appender::non_blocking(appender);
         guards._rolling_appender_guard = Some(guard);
@@ -145,6 +150,9 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
             .with_ansi(false)
             .compact()
     });
+
+    #[cfg(target_arch = "wasm32")]
+    let file_layer = None;
 
     // --- syslog layer (Unix only) ---
     #[cfg(not(target_os = "windows"))]
@@ -164,7 +172,6 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
         None
     };
 
-    // --- OTLP layer ---
     // --- OTLP layer ---
     let otel_layer = config.otlp.as_ref().and_then(|telemetry| {
         let resource = build_resource_with_config(&config.service_name, telemetry);
