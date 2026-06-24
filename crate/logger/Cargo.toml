@@ -23,9 +23,7 @@ opentelemetry_sdk = { version = "0.32", features = [
 thiserror = { workspace = true }
 syslog-tracing = "0.3"
 tracing = { workspace = true }
-tracing-appender = { workspace = true }
 tracing-opentelemetry = { version = "0.33" }
-tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = [
     "ansi",
     "env-filter",
@@ -33,5 +31,6 @@ tracing-subscriber = { workspace = true, features = [
     "std"
 ] }
 
-[features]
-full = ["dep:tokio"]
+# tracing-appender uses platform-specific file rotation that does not compile on wasm32.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing-appender = { workspace = true }

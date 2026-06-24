@@ -46,75 +46,68 @@ macro_rules! __fn_name {
 #[macro_export]
 macro_rules! info {
     // `target:` must remain the first token — inject fn_name right after it.
-    (target: $target:expr, $($rest:tt)*) => {
-        $crate::reexport::tracing::info!(
-            target: $target,
-            fn_name = $crate::__fn_name!(),
-            $($rest)*
-        )
-    };
+    // The fn_name is bound to a local to avoid passing a block-expression
+    // directly as a macro argument (which confuses token-tree parsers such as
+    // `tokio::select!`).
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::info!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
     // All other syntax (plain message, structured fields, ?field, %field …).
-    ($($rest:tt)*) => {
-        $crate::reexport::tracing::info!(fn_name = $crate::__fn_name!(), $($rest)*)
-    };
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::info!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
 /// Emit a `tracing::debug!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! debug {
-    (target: $target:expr, $($rest:tt)*) => {
-        $crate::reexport::tracing::debug!(
-            target: $target,
-            fn_name = $crate::__fn_name!(),
-            $($rest)*
-        )
-    };
-    ($($rest:tt)*) => {
-        $crate::reexport::tracing::debug!(fn_name = $crate::__fn_name!(), $($rest)*)
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::debug!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::debug!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
 /// Emit a `tracing::warn!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! warn {
-    (target: $target:expr, $($rest:tt)*) => {
-        $crate::reexport::tracing::warn!(
-            target: $target,
-            fn_name = $crate::__fn_name!(),
-            $($rest)*
-        )
-    };
-    ($($rest:tt)*) => {
-        $crate::reexport::tracing::warn!(fn_name = $crate::__fn_name!(), $($rest)*)
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::warn!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::warn!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
 /// Emit a `tracing::error!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! error {
-    (target: $target:expr, $($rest:tt)*) => {
-        $crate::reexport::tracing::error!(
-            target: $target,
-            fn_name = $crate::__fn_name!(),
-            $($rest)*
-        )
-    };
-    ($($rest:tt)*) => {
-        $crate::reexport::tracing::error!(fn_name = $crate::__fn_name!(), $($rest)*)
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::error!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::error!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
 /// Emit a `tracing::trace!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! trace {
-    (target: $target:expr, $($rest:tt)*) => {
-        $crate::reexport::tracing::trace!(
-            target: $target,
-            fn_name = $crate::__fn_name!(),
-            $($rest)*
-        )
-    };
-    ($($rest:tt)*) => {
-        $crate::reexport::tracing::trace!(fn_name = $crate::__fn_name!(), $($rest)*)
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::trace!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::trace!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }

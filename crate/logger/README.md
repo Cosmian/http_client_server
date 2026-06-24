@@ -1,4 +1,4 @@
-# shared_logging
+# cosmian_logger
 
 ## Why
 
@@ -9,7 +9,7 @@ Alloy → Loki / Tempo / Prometheus pipeline.
 
 ## What
 
-`shared_logging` provides two initialisation paths and a set of logging macros:
+`cosmian_logger` provides two initialisation paths and a set of logging macros:
 
 | API | Use case |
 |-----|----------|
@@ -63,13 +63,13 @@ every signal from a service is correlated in Grafana.
 
 ```toml
 [dependencies]
-shared_logging = { workspace = true }
+cosmian_logger = { workspace = true }
 ```
 
 ### Full-featured init (`tracing_init`)
 
 ```rust
-use shared_logging::{TelemetryConfig, TracingConfig, info, tracing_init};
+use cosmian_logger::{TelemetryConfig, TracingConfig, info, tracing_init};
 
 fn main() {
     let _guards = tracing_init(&TracingConfig {
@@ -85,7 +85,7 @@ fn main() {
         ..Default::default()
     });
 
-    info!("service started");   // prefixed with function name in message
+    info!("service started");   // emits a fn_name=<function> structured field
 }
 ```
 
@@ -140,7 +140,7 @@ log stream --predicate 'senderImagePath contains "my-service"'
 ### Lightweight env-var init (`init_tracing`)
 
 ```rust
-use shared_logging::init_tracing;
+use cosmian_logger::init_tracing;
 use tracing::{info, warn};
 
 #[tokio::main]
@@ -157,12 +157,12 @@ async fn main() -> anyhow::Result<()> {
 
 ### Logging macros
 
-`shared_logging` exports `info!`, `debug!`, `warn!`, `error!`, and `trace!` macros that
-wrap the standard `tracing` macros and automatically prepend `[function_name]` to every
-message, making it easy to locate the call site in log aggregators:
+`cosmian_logger` exports `info!`, `debug!`, `warn!`, `error!`, and `trace!` macros that
+wrap the standard `tracing` macros and automatically inject a `fn_name` structured field,
+making it easy to locate the call site in structured log aggregators:
 
 ```rust
-use shared_logging::info;
+use cosmian_logger::info;
 
 fn process_request(id: u64) {
     info!("processing request {id}");
@@ -174,7 +174,7 @@ fn process_request(id: u64) {
 
 ```rust
 use opentelemetry::metrics::Counter;
-use shared_logging::init_tracing;
+use cosmian_logger::init_tracing;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -228,21 +228,21 @@ env:
 
 ```sh
 # From workspace root
-cargo build -p shared_logging
-cargo build -p shared_logging --release
+cargo build -p cosmian_logger
+cargo build -p cosmian_logger --release
 ```
 
 ## Testing
 
 ```sh
 # Unit tests (no network required)
-cargo test -p shared_logging
+cargo test -p cosmian_logger
 
 # Smoke test against a live collector
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
 OTEL_SERVICE_NAME=test-service \
 RUST_LOG=debug \
-  cargo test -p shared_logging -- --nocapture
+  cargo test -p cosmian_logger -- --nocapture
 ```
 
 To port-forward the Velo platform's Alloy instance:
