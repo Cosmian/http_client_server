@@ -1,41 +1,40 @@
-use thiserror::Error;
+/// Errors that can occur while initialising or configuring the logging stack.
+#[derive(Debug, thiserror::Error)]
+pub enum LoggingError {
+    #[error("failed to build OTLP span exporter: {0}")]
+    SpanExporter(#[source] opentelemetry_otlp::ExporterBuildError),
 
-#[derive(Error, Debug)]
-pub enum LoggerError {
-    #[error("OTLP error: {0}")]
-    Otlp(String),
+    #[error("failed to build OTLP log exporter: {0}")]
+    LogExporter(#[source] opentelemetry_otlp::ExporterBuildError),
 
-    #[error("Parsing error: {0}")]
-    Parsing(String),
+    #[error("failed to build OTLP metric exporter: {0}")]
+    MetricExporter(#[source] opentelemetry_otlp::ExporterBuildError),
 
-    #[error("Tracing subscriber error: {0}")]
-    TracingSubscriber(String),
+    #[error("failed to initialise tracing subscriber: {0}")]
+    SubscriberInit(#[source] tracing_subscriber::util::TryInitError),
 
-    #[error("IO error: {0}")]
-    IOError(String),
+    #[error("{context}: {source}")]
+    WithContext {
+        context: &'static str,
+        #[source]
+        source: Box<LoggingError>,
+    },
 }
 
-#[cfg(feature = "full")]
-impl From<opentelemetry_otlp::ExporterBuildError> for LoggerError {
-    fn from(e: opentelemetry_otlp::ExporterBuildError) -> Self {
-        Self::Otlp(e.to_string())
-    }
+/// Result type for the logging stack initialisation.
+pub type LoggingResult<T> = Result<T, LoggingError>;
+
+/// Extension trait that adds `.context(msg)` to [`LoggingResult`], mirroring
+/// the ergonomics of `anyhow::Context`.
+pub trait ResultExt<T> {
+    fn context(self, ctx: &'static str) -> LoggingResult<T>;
 }
 
-impl From<tracing_subscriber::filter::ParseError> for LoggerError {
-    fn from(e: tracing_subscriber::filter::ParseError) -> Self {
-        Self::Parsing(e.to_string())
-    }
-}
-
-impl From<tracing_subscriber::util::TryInitError> for LoggerError {
-    fn from(value: tracing_subscriber::util::TryInitError) -> Self {
-        Self::TracingSubscriber(value.to_string())
-    }
-}
-
-impl From<std::ffi::NulError> for LoggerError {
-    fn from(e: std::ffi::NulError) -> Self {
-        Self::Parsing(e.to_string())
+impl<T> ResultExt<T> for LoggingResult<T> {
+    fn context(self, ctx: &'static str) -> LoggingResult<T> {
+        self.map_err(|source| LoggingError::WithContext {
+            context: ctx,
+            source: Box::new(source),
+        })
     }
 }

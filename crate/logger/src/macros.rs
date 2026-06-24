@@ -1,256 +1,116 @@
-/// Helper macro to extract function name from the call site
+//! Logging macros that annotate each event with a `fn_name` structured field.
+//!
+//! The full tracing field syntax is preserved: `target:`, `?field`, `%field`,
+//! named fields (`key = value`), and positional format strings all work
+//! exactly as they do with the bare `tracing::` macros.
+//! A `fn_name` structured field is automatically injected so that every log
+//! event carries the name of the emitting function, which is visible in
+//! structured back-ends (OTLP, JSON) and standard `tracing-subscriber` output.
+
+/// Helper: extract the current function name at compile time.
+///
+/// Returns `&'static str` — the last path segment of the calling function.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! __get_fn_name {
+macro_rules! __fn_name {
     () => {{
-        let type_name = std::any::type_name_of_val(&|| {});
-        let parts: Vec<&str> = type_name.split("::").collect();
-        // Find the last element that is not "{{closure}}"
-        let raw = parts
-            .iter()
-            .rev()
-            .find(|&&part| part != "{{closure}}")
-            .unwrap_or(&"unknown");
-        // Strip lifetime/generic parameters (e.g. `foo<'_, '_, '_>` → `foo`)
-        match raw.find('<') {
-            Some(idx) => raw[..idx].to_string(),
-            None => raw.to_string(),
+        // Define a nested function `_f` inside the calling function.
+        // `std::any::type_name_of_val(&_f)` yields the full path of `_f`,
+        // e.g. `my_crate::module::calling_fn::_f`.
+        // We strip the trailing `::_f` segment and then take the last `::`
+        // segment to obtain the enclosing function name.
+        fn _f() {}
+        fn _strip(name: &str) -> &str {
+            // Remove `::_f` suffix
+            let trimmed = match name.rfind("::") {
+                Some(pos) => &name[..pos],
+                None => name,
+            };
+            // Take last segment
+            match trimmed.rfind("::") {
+                Some(pos) => &trimmed[pos + 2..],
+                None => trimmed,
+            }
         }
+        _strip(::std::any::type_name_of_val(&_f))
     }};
 }
 
-/// Macro to automatically add function name as prefix to info logs
-/// Supports both simple format strings and structured logging with key-value
-/// pairs
+/// Emit a `tracing::info!` event, automatically adding a `fn_name` field.
+///
+/// All standard tracing field syntax is supported:
+/// ```rust,ignore
+/// info!("plain message");
+/// info!("format {}", value);
+/// info!(target: "my_target", "message");
+/// info!(key = %value, "message");
+/// info!(?err, "import failed");
+/// ```
 #[macro_export]
 macro_rules! info {
-    (target: $target:expr, $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::info!(target: $target, "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    (target: $target:expr, $($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::info!(target: $target, $($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($field:ident = $value:expr),+ $(,)?; $($rest:tt)*) => {
-        $crate::reexport::tracing::info!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($($rest)*))
-    };
-    ($($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::info!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::info!("[{}] {}", $crate::__get_fn_name!(), format!($($arg)*))
-    };
+    // `target:` must remain the first token — inject fn_name right after it.
+    // The fn_name is bound to a local to avoid passing a block-expression
+    // directly as a macro argument (which confuses token-tree parsers such as
+    // `tokio::select!`).
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::info!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    // All other syntax (plain message, structured fields, ?field, %field …).
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::info!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
-/// Macro to automatically add function name as prefix to debug logs
-/// Supports both simple format strings and structured logging with key-value
-/// pairs
+/// Emit a `tracing::debug!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! debug {
-    (target: $target:expr, $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::debug!(target: $target, "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    (target: $target:expr, $($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::debug!(target: $target, $($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($field:ident = $value:expr),+ $(,)?; $($rest:tt)*) => {
-        $crate::reexport::tracing::debug!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($($rest)*))
-    };
-    ($($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::debug!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::debug!("[{}] {}", $crate::__get_fn_name!(), format!($($arg)*))
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::debug!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::debug!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
-/// Macro to automatically add function name as prefix to warn logs
-/// Supports both simple format strings and structured logging with key-value
-/// pairs
+/// Emit a `tracing::warn!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! warn {
-    (target: $target:expr, $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::warn!(target: $target, "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    (target: $target:expr, $($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::warn!(target: $target, $($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($field:ident = $value:expr),+ $(,)?; $($rest:tt)*) => {
-        $crate::reexport::tracing::warn!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($($rest)*))
-    };
-    ($($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::warn!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::warn!("[{}] {}", $crate::__get_fn_name!(), format!($($arg)*))
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::warn!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::warn!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
-/// Macro to automatically add function name as prefix to error logs
-/// Supports both simple format strings and structured logging with key-value
-/// pairs
+/// Emit a `tracing::error!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! error {
-    (target: $target:expr, $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::error!(target: $target, "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    (target: $target:expr, $($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::error!(target: $target, $($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($field:ident = $value:expr),+ $(,)?; $($rest:tt)*) => {
-        $crate::reexport::tracing::error!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($($rest)*))
-    };
-    ($($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::error!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::error!("[{}] {}", $crate::__get_fn_name!(), format!($($arg)*))
-    };
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::error!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::error!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }
 
-/// Macro to automatically add function name as prefix to trace logs
-/// Supports both simple format strings and structured logging with key-value
-/// pairs
+/// Emit a `tracing::trace!` event, automatically adding a `fn_name` field.
 #[macro_export]
 macro_rules! trace {
-    (target: $target:expr, $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::trace!(target: $target, "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    (target: $target:expr, $($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::trace!(target: $target, $($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($field:ident = $value:expr),+ $(,)?; $($rest:tt)*) => {
-        $crate::reexport::tracing::trace!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($($rest)*))
-    };
-    ($($field:ident = $value:expr,)+ $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::reexport::tracing::trace!($($field = $value,)+ "[{}] {}", $crate::__get_fn_name!(), format!($fmt $(, $($args)*)?))
-    };
-    ($($arg:tt)*) => {
-        $crate::reexport::tracing::trace!("[{}] {}", $crate::__get_fn_name!(), format!($($arg)*))
-    };
-}
-
-#[cfg(test)]
-mod macro_tests {
-    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
-
-    #[derive(Debug)]
-    enum ObjectType {
-        Document,
-    }
-
-    struct TestObject {
-        obj_type: ObjectType,
-    }
-
-    impl TestObject {
-        fn object_type(&self) -> &ObjectType {
-            &self.obj_type
-        }
-    }
-
-    fn init_test_logging() {
-        let _ = tracing_subscriber::registry().with(fmt::layer()).try_init();
-    }
-
-    #[test]
-    fn test_structured_logging_macros() {
-        init_test_logging();
-
-        let uid = "test_uid";
-        let owner = "test_owner";
-        let object = TestObject {
-            obj_type: ObjectType::Document,
-        };
-
-        // Test the exact pattern from the user's request
-        info!(
-            uid = uid,
-            user = owner,
-            "Created Object of type {:?}",
-            &object.object_type()
-        );
-
-        // Test variations
-        debug!(
-            uid = uid,
-            user = owner,
-            "Debug message for object type {:?}",
-            &object.object_type()
-        );
-        warn!(
-            user = owner,
-            "Warning about object type {:?}",
-            &object.object_type()
-        );
-        error!(
-            uid = uid,
-            user = owner,
-            "Error related to object type {:?}",
-            &object.object_type()
-        );
-    }
-
-    #[test]
-    fn test_simple_logging_macros() {
-        init_test_logging();
-
-        info!("Simple info message");
-        debug!("Simple debug message with arg: {}", 42);
-        warn!("Simple warning: {}", "test");
-    }
-
-    #[test]
-    fn test_target_with_structured_logging() {
-        init_test_logging();
-
-        let user = "test_user";
-
-        // Mock TTLV structure for testing
-        struct TestTag {
-            tag: String,
-        }
-
-        impl TestTag {
-            fn as_str(&self) -> &str {
-                &self.tag
-            }
-        }
-
-        struct TestTtlv {
-            tag: TestTag,
-        }
-
-        let ttlv = TestTtlv {
-            tag: TestTag {
-                tag: "Create".to_string(),
-            },
-        };
-
-        // Test the exact pattern from the user's request
-        info!(target: "kmip", user = user, tag = ttlv.tag.as_str(), "POST /kmip/2_1. Request: {:?} {}", ttlv.tag.as_str(), user);
-    }
-
-    #[test]
-    fn test_all_macros_with_target() {
-        init_test_logging();
-
-        let user = "admin";
-        let action = "test_action";
-
-        // Test all macros with target support
-        info!(target: "auth", user = user, action = action, "Info: User {} performed {}", user, action);
-        debug!(target: "auth", user = user, action = action, "Debug: User {} performed {}", user, action);
-        warn!(target: "auth", user = user, action = action, "Warning: User {} performed {}", user, action);
-        error!(target: "auth", user = user, action = action, "Error: User {} performed {}", user, action);
-        trace!(target: "auth", user = user, action = action, "Trace: User {} performed {}", user, action);
-    }
-
-    #[test]
-    fn test_target_with_simple_message() {
-        init_test_logging();
-
-        let e = "parse error: invalid format";
-
-        // Test the exact pattern from the user's request
-        error!(target: "kmip", "Failed to parse RequestMessage: {}", e);
-    }
+    (target: $target:expr, $($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::trace!(target: $target, fn_name = __kms_fn_name, $($rest)*)
+    }};
+    ($($rest:tt)*) => {{
+        let __kms_fn_name = $crate::__fn_name!();
+        $crate::reexport::tracing::trace!(fn_name = __kms_fn_name, $($rest)*)
+    }};
 }

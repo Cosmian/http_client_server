@@ -1,60 +1,43 @@
 [package]
 name = "cosmian_logger"
+description = "Shared tracing and OTLP initialization for Rust services"
 version.workspace = true
-authors.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
-description = "Logger helper"
-
-[[example]]
-name = "tracing_example"
-required-features = ["full"]
-
-[features]
-default = []
-full = [
-  "opentelemetry-otlp",
-  "opentelemetry-semantic-conventions",
-  "opentelemetry-stdout",
-  "opentelemetry_sdk",
-  "tracing-opentelemetry",
-  "syslog-tracing",
-]
+license.workspace = true
 
 [dependencies]
-opentelemetry = { version = "0.29", features = ["trace", "metrics"] }
-opentelemetry-otlp = { version = "0.29", features = [
-  "trace",
-  "metrics",
-  "integration-testing",
-  "grpc-tonic",
-], optional = true }
-opentelemetry-semantic-conventions = { version = "0.29", features = [
-  "semconv_experimental",
-], optional = true }
-opentelemetry-stdout = { version = "0.29", features = [
-  "trace",
-  "metrics",
-], optional = true }
-opentelemetry_sdk = { version = "0.29", default-features = false, features = [
-  "trace",
-], optional = true }
-syslog-tracing = { version = "0.3", optional = true }
+opentelemetry = "0.32"
+opentelemetry-appender-tracing = "0.32"
+opentelemetry-otlp = { version = "0.32", features = [
+    "metrics",
+    "logs",
+    "grpc-tonic"
+] }
+opentelemetry-semantic-conventions = "0.32"
+opentelemetry_sdk = { version = "0.32", features = [
+    "metrics",
+    "logs",
+    "rt-tokio"
+] }
 thiserror = { workspace = true }
+syslog-tracing = "0.3"
 tracing = { workspace = true }
-tracing-opentelemetry = { version = "0.30", optional = true }
+tracing-opentelemetry = { version = "0.33" }
 tracing-subscriber = { workspace = true, features = [
-  "env-filter",
-  "fmt",
-  "ansi",
+    "ansi",
+    "env-filter",
+    "fmt",
+    "std"
 ] }
 
-# tracing-appender uses the `symlink` crate for file rotation which does not compile on
-# wasm32-unknown-unknown. Gate it to native targets only.
+# tracing-appender uses platform-specific file rotation that does not compile on wasm32.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-appender = { workspace = true }
 
 [dev-dependencies]
-tokio = { version = "1.47", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[[example]]
+name = "tracing_example"
+required-features = ["full"]
