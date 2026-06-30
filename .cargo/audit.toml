@@ -1,0 +1,6 @@
+[advisories]
+# time 0.3.35 is pinned as a direct dep to keep actix-web 4.x → cookie 0.16.2
+# compilable (cookie uses time::Parseable removed in time >= 0.3.36).
+# The affected parse functions (RFC 2822 format) are not called with untrusted
+# user input in this codebase. Fix: upgrade actix-web once 5.x ships with cookie >= 0.18.
+ignore = ["RUSTSEC-2026-0009"]
