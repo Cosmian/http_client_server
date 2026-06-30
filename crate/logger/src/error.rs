@@ -1,12 +1,15 @@
 /// Errors that can occur while initialising or configuring the logging stack.
 #[derive(Debug, thiserror::Error)]
 pub enum LoggingError {
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("failed to build OTLP span exporter: {0}")]
     SpanExporter(#[source] opentelemetry_otlp::ExporterBuildError),
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("failed to build OTLP log exporter: {0}")]
     LogExporter(#[source] opentelemetry_otlp::ExporterBuildError),
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("failed to build OTLP metric exporter: {0}")]
     MetricExporter(#[source] opentelemetry_otlp::ExporterBuildError),
 

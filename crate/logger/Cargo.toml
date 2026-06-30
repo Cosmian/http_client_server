@@ -7,6 +7,18 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = [
+    "ansi",
+    "env-filter",
+    "fmt",
+    "std"
+] }
+
+# opentelemetry-otlp pulls tonic -> tokio (net feature) -> mio, which does not
+# compile for wasm32-unknown-unknown.  Gate the entire OTLP and syslog stacks.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 opentelemetry = "0.32"
 opentelemetry-appender-tracing = "0.32"
 opentelemetry-otlp = { version = "0.32", features = [
@@ -20,24 +32,12 @@ opentelemetry_sdk = { version = "0.32", features = [
     "logs",
     "rt-tokio"
 ] }
-thiserror = { workspace = true }
 syslog-tracing = "0.3"
-tracing = { workspace = true }
-tracing-opentelemetry = { version = "0.33" }
-tracing-subscriber = { workspace = true, features = [
-    "ansi",
-    "env-filter",
-    "fmt",
-    "std"
-] }
-
-# tracing-appender uses platform-specific file rotation that does not compile on wasm32.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-appender = { workspace = true }
+tracing-opentelemetry = { version = "0.33" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [[example]]
 name = "tracing_example"
-required-features = ["full"]

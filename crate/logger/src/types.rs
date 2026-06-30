@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
 };
@@ -27,8 +28,8 @@ pub struct TracingConfig {
     /// Suppress stdout logging.
     pub no_log_to_stdout: bool,
 
-    /// Forward logs to syslog (Unix only).
-    #[cfg(not(target_os = "windows"))]
+    /// Forward logs to syslog (Unix only, non-wasm).
+    #[cfg(not(any(target_os = "windows", target_arch = "wasm32")))]
     pub log_to_syslog: bool,
 
     /// Rolling daily log file: `(directory, filename_prefix)`.
@@ -45,8 +46,9 @@ pub struct TracingConfig {
 
 /// Guards that keep OTLP exporters alive for the lifetime of the process.
 ///
-/// Call [`TelemetryGuards::shutdown`] before process exit to flush pending
-/// telemetry and release resources cleanly.
+/// Only available on non-wasm targets.  Call [`TelemetryGuards::shutdown`]
+/// before process exit to flush pending telemetry and release resources cleanly.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 pub struct TelemetryGuards {
     pub(crate) tracer_provider: Option<SdkTracerProvider>,
@@ -54,6 +56,7 @@ pub struct TelemetryGuards {
     pub(crate) meter_provider: Option<SdkMeterProvider>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl TelemetryGuards {
     /// Flush and shut down all active OTLP exporters.
     pub fn shutdown(self) {
@@ -81,14 +84,15 @@ impl TelemetryGuards {
 /// Guards that keep background exporters alive (for [`tracing_init`]).
 ///
 /// The tracing pipeline shuts down cleanly when this value is dropped.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 pub struct LoggingGuards {
     pub(crate) _tracer_provider: Option<SdkTracerProvider>,
     pub(crate) _meter_provider: Option<SdkMeterProvider>,
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) _rolling_appender_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LoggingGuards {
     fn drop(&mut self) {
         if let Some(tp) = self._tracer_provider.take() {
@@ -99,3 +103,8 @@ impl Drop for LoggingGuards {
         }
     }
 }
+
+/// On wasm32, `LoggingGuards` is an empty no-op (no OTLP, no file appender).
+#[cfg(target_arch = "wasm32")]
+#[derive(Default)]
+pub struct LoggingGuards;
