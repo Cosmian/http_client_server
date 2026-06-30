@@ -28,8 +28,8 @@ pub struct TracingConfig {
     /// Suppress stdout logging.
     pub no_log_to_stdout: bool,
 
-    /// Forward logs to syslog (Unix only, non-wasm).
-    #[cfg(not(any(target_os = "windows", target_arch = "wasm32")))]
+    /// Forward logs to syslog (Unix only; ignored on wasm32).
+    #[cfg(not(target_os = "windows"))]
     pub log_to_syslog: bool,
 
     /// Rolling daily log file: `(directory, filename_prefix)`.
