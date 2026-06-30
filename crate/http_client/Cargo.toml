@@ -39,6 +39,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "1.47", features = ["full"] }
+# actix-web 4.x → actix-http 3.x → cookie 0.16.2 uses time::Parseable (1-arg)
+# which was removed in time >= 0.3.36. Cap time here so fresh dep resolutions
+# (e.g. cargo-semver-checks) don't pick up a breaking time version.
+time = { version = ">=0.3, <0.3.36" }
 tracing = "0.1"
 url = "2.5"
 x509-cert = "0.2.5"
@@ -47,3 +51,9 @@ x509-cert = "0.2.5"
 actix-http = "3.6.0"
 anyhow = "1.0.99"
 cosmian_logger = { path = "../logger" }
+
+# `time` above is not used directly in code — it is a version constraint to keep
+# actix-web 4.x transitive dep cookie 0.16.2 compilable (cookie uses time::Parseable
+# removed in time >= 0.3.36). cargo-machete must ignore it.
+[package.metadata.cargo-machete]
+ignored = ["time"]

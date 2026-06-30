@@ -3,20 +3,31 @@ mod macros;
 mod tests;
 pub mod types;
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub use error::{LoggingError, LoggingResult, ResultExt};
+pub use types::{LoggingGuards, TelemetryConfig, TracingConfig};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use types::TelemetryGuards;
+
+// Non-wasm-only imports (opentelemetry-otlp → tonic → tokio/mio → not wasm32).
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry::trace::TracerProvider;
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_otlp::WithExportConfig;
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     metrics::{PeriodicReader, SdkMeterProvider},
     trace::{RandomIdGenerator, Sampler, SdkTracerProvider},
     Resource,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-pub use types::{LoggingGuards, TelemetryConfig, TelemetryGuards, TracingConfig};
 
 /// Re-exports for downstream crates (used by the logging macros).
 pub mod reexport {
@@ -26,8 +37,10 @@ pub mod reexport {
 
 // ── private helpers ──────────────────────────────────────────────────────────
 
+#[cfg(not(target_arch = "wasm32"))]
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_resource_simple(service_name: &str) -> Resource {
     Resource::builder_empty()
         .with_attributes([opentelemetry::KeyValue::new(
@@ -37,6 +50,7 @@ fn build_resource_simple(service_name: &str) -> Resource {
         .build()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_resource_with_config(service_name: &str, config: &TelemetryConfig) -> Resource {
     use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, SERVICE_VERSION};
     let mut kvs = vec![opentelemetry::KeyValue::new(
@@ -55,6 +69,7 @@ fn build_resource_with_config(service_name: &str, config: &TelemetryConfig) -> R
     Resource::builder_empty().with_attributes(kvs).build()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_tracer_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkTracerProvider> {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
@@ -71,6 +86,7 @@ fn new_tracer_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkT
         .build())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_logger_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkLoggerProvider> {
     let exporter = opentelemetry_otlp::LogExporter::builder()
         .with_tonic()
@@ -85,6 +101,7 @@ fn new_logger_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkL
         .build())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_meter_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkMeterProvider> {
     let exporter = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
@@ -108,14 +125,15 @@ fn new_meter_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkMe
 ///
 /// Safe to call more than once — subsequent calls are no-ops and return empty
 /// guards.
+///
+/// On `wasm32`, this is a no-op stub: OTLP and file/syslog layers are not
+/// available.  Downstream code should install a WASM-compatible subscriber
+/// (e.g. `tracing_wasm`) before or instead of calling this function.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     if INITIALIZED.swap(true, Ordering::SeqCst) {
         return LoggingGuards::default();
     }
-
-    // NOTE: Avoid mutating process-wide environment variables here
-    // (std::env::set_var is `unsafe`). If `rust_log` is provided, apply it
-    // directly when building the `EnvFilter` below.
 
     let mut guards = LoggingGuards::default();
 
@@ -136,9 +154,6 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     };
 
     // --- rolling file layer ---
-    // tracing-appender uses platform-specific file rotation support and does not
-    // compile on wasm32.
-    #[cfg(not(target_arch = "wasm32"))]
     let file_layer = config.log_to_file.as_ref().map(|(dir, name)| {
         if !dir.exists() {
             if let Err(e) = std::fs::create_dir_all(dir) {
@@ -154,10 +169,7 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
             .compact()
     });
 
-    #[cfg(target_arch = "wasm32")]
-    let file_layer = None;
-
-    // --- syslog layer (Unix only) ---
+    // --- syslog layer (Unix only, non-wasm) ---
     #[cfg(not(target_os = "windows"))]
     let syslog_layer = if config.log_to_syslog {
         std::ffi::CString::new(config.service_name.as_str())
@@ -220,8 +232,6 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     let ts = ts.with(syslog_layer);
 
     if let Err(e) = ts.try_init() {
-        // Best-effort cleanup: avoid leaving background exporters running when
-        // subscriber init fails.
         if let Some(tp) = guards._tracer_provider.take() {
             let _ = tp.shutdown();
         }
@@ -233,6 +243,15 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     }
 
     guards
+}
+
+/// No-op stub for `wasm32`: OTLP, file, and syslog layers are unavailable.
+///
+/// Install a WASM-compatible subscriber (e.g. `tracing_wasm`) separately if
+/// log output is needed in the browser / WASM environment.
+#[cfg(target_arch = "wasm32")]
+pub fn tracing_init(_config: &TracingConfig) -> LoggingGuards {
+    LoggingGuards
 }
 
 /// Convenience initialiser for tests and simple CLIs (stdout only).
@@ -255,6 +274,9 @@ pub fn log_init(rust_log: Option<&str>) {
 ///
 /// Returns [`TelemetryGuards`] that must be kept alive for the entire process
 /// lifetime.  Call [`TelemetryGuards::shutdown`] before exit to flush buffers.
+///
+/// Not available on `wasm32` (OTLP requires tokio with net feature).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn init_tracing(default_service_name: &str) -> LoggingResult<TelemetryGuards> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
