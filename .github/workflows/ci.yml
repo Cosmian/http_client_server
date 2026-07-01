@@ -22,6 +22,17 @@ jobs:
       - name: Tests all targets all features
         run: cargo test --lib --workspace --all-targets --all-features
 
+  wasm-build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.90.0
+          targets: wasm32-unknown-unknown
+      - name: Build cosmian_logger for wasm32-unknown-unknown
+        run: cargo build --target wasm32-unknown-unknown -p cosmian_logger
+
   cargo-lint:
     uses: Cosmian/reusable_workflows/.github/workflows/cargo-lint.yml@develop
     with:

@@ -6,9 +6,13 @@ pub mod types;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub use error::{LoggingError, LoggingResult, ResultExt};
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry::trace::TracerProvider;
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_otlp::WithExportConfig;
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     metrics::{PeriodicReader, SdkMeterProvider},
@@ -28,6 +32,7 @@ pub mod reexport {
 
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_resource_simple(service_name: &str) -> Resource {
     Resource::builder_empty()
         .with_attributes([opentelemetry::KeyValue::new(
@@ -37,6 +42,7 @@ fn build_resource_simple(service_name: &str) -> Resource {
         .build()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_resource_with_config(service_name: &str, config: &TelemetryConfig) -> Resource {
     use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, SERVICE_VERSION};
     let mut kvs = vec![opentelemetry::KeyValue::new(
@@ -55,6 +61,7 @@ fn build_resource_with_config(service_name: &str, config: &TelemetryConfig) -> R
     Resource::builder_empty().with_attributes(kvs).build()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_tracer_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkTracerProvider> {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
@@ -71,6 +78,7 @@ fn new_tracer_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkT
         .build())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_logger_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkLoggerProvider> {
     let exporter = opentelemetry_otlp::LogExporter::builder()
         .with_tonic()
@@ -85,6 +93,7 @@ fn new_logger_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkL
         .build())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_meter_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkMeterProvider> {
     let exporter = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
@@ -117,6 +126,9 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     // (std::env::set_var is `unsafe`). If `rust_log` is provided, apply it
     // directly when building the `EnvFilter` below.
 
+    // `mut` is required on non-wasm targets where guards fields are populated
+    // inside the #[cfg(not(target_arch = "wasm32"))] block below.
+    #[allow(unused_mut)]
     let mut guards = LoggingGuards::default();
 
     // --- stdout layer ---
@@ -135,101 +147,118 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
         )
     };
 
-    // --- rolling file layer ---
-    // tracing-appender uses platform-specific file rotation support and does not
-    // compile on wasm32.
-    #[cfg(not(target_arch = "wasm32"))]
-    let file_layer = config.log_to_file.as_ref().map(|(dir, name)| {
-        if !dir.exists() {
-            if let Err(e) = std::fs::create_dir_all(dir) {
-                eprintln!("Failed to create log directory {}: {e}", dir.display());
-            }
-        }
-        let appender = tracing_appender::rolling::daily(dir, name);
-        let (non_blocking, guard) = tracing_appender::non_blocking(appender);
-        guards._rolling_appender_guard = Some(guard);
-        tracing_subscriber::fmt::layer()
-            .with_writer(non_blocking)
-            .with_ansi(false)
-            .compact()
-    });
-
-    #[cfg(target_arch = "wasm32")]
-    let file_layer = None;
-
-    // --- syslog layer (Unix only) ---
-    #[cfg(not(target_os = "windows"))]
-    let syslog_layer = if config.log_to_syslog {
-        std::ffi::CString::new(config.service_name.as_str())
-            .ok()
-            .and_then(|id| {
-                syslog_tracing::Syslog::new(id, Default::default(), syslog_tracing::Facility::User)
-            })
-            .map(|syslog| {
-                tracing_subscriber::fmt::layer()
-                    .with_writer(syslog)
-                    .with_ansi(false)
-                    .compact()
-            })
-    } else {
-        None
-    };
-
-    // --- OTLP layer ---
-    let otel_layer = config.otlp.as_ref().and_then(|telemetry| {
-        let resource = build_resource_with_config(&config.service_name, telemetry);
-
-        let tracer_provider = match new_tracer_provider(&telemetry.otlp_url, resource.clone()) {
-            Ok(tp) => tp,
-            Err(e) => {
-                eprintln!("Failed to initialise OTLP span exporter: {e}");
-                return None;
-            }
-        };
-
-        let tracer = tracer_provider.tracer(config.service_name.clone());
-        opentelemetry::global::set_tracer_provider(tracer_provider.clone());
-        guards._tracer_provider = Some(tracer_provider);
-
-        if telemetry.enable_metering {
-            match new_meter_provider(&telemetry.otlp_url, resource) {
-                Ok(mp) => {
-                    opentelemetry::global::set_meter_provider(mp.clone());
-                    guards._meter_provider = Some(mp);
-                }
-                Err(e) => eprintln!("Failed to initialise OTLP metric exporter: {e}"),
-            }
-        }
-
-        Some(tracing_opentelemetry::layer().with_tracer(tracer))
-    });
-
     let filter = config
         .rust_log
         .as_deref()
         .map(EnvFilter::new)
         .unwrap_or_else(EnvFilter::from_default_env);
 
-    let ts = tracing_subscriber::registry()
-        .with(filter)
-        .with(stdout_layer)
-        .with(file_layer)
-        .with(otel_layer);
+    // ── non-wasm subscriber: file + syslog + OTLP layers ────────────────────
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // --- rolling file layer ---
+        // tracing-appender uses platform-specific file rotation support and does
+        // not compile on wasm32.
+        let file_layer = config.log_to_file.as_ref().map(|(dir, name)| {
+            if !dir.exists() {
+                if let Err(e) = std::fs::create_dir_all(dir) {
+                    eprintln!("Failed to create log directory {}: {e}", dir.display());
+                }
+            }
+            let appender = tracing_appender::rolling::daily(dir, name);
+            let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+            guards._rolling_appender_guard = Some(guard);
+            tracing_subscriber::fmt::layer()
+                .with_writer(non_blocking)
+                .with_ansi(false)
+                .compact()
+        });
 
-    #[cfg(not(target_os = "windows"))]
-    let ts = ts.with(syslog_layer);
+        // --- syslog layer (Unix only) ---
+        #[cfg(not(target_os = "windows"))]
+        let syslog_layer = if config.log_to_syslog {
+            std::ffi::CString::new(config.service_name.as_str())
+                .ok()
+                .and_then(|id| {
+                    syslog_tracing::Syslog::new(
+                        id,
+                        Default::default(),
+                        syslog_tracing::Facility::User,
+                    )
+                })
+                .map(|syslog| {
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(syslog)
+                        .with_ansi(false)
+                        .compact()
+                })
+        } else {
+            None
+        };
 
-    if let Err(e) = ts.try_init() {
-        // Best-effort cleanup: avoid leaving background exporters running when
-        // subscriber init fails.
-        if let Some(tp) = guards._tracer_provider.take() {
-            let _ = tp.shutdown();
+        // --- OTLP layer ---
+        let otel_layer = config.otlp.as_ref().and_then(|telemetry| {
+            let resource = build_resource_with_config(&config.service_name, telemetry);
+
+            let tracer_provider = match new_tracer_provider(&telemetry.otlp_url, resource.clone()) {
+                Ok(tp) => tp,
+                Err(e) => {
+                    eprintln!("Failed to initialise OTLP span exporter: {e}");
+                    return None;
+                }
+            };
+
+            let tracer = tracer_provider.tracer(config.service_name.clone());
+            opentelemetry::global::set_tracer_provider(tracer_provider.clone());
+            guards._tracer_provider = Some(tracer_provider);
+
+            if telemetry.enable_metering {
+                match new_meter_provider(&telemetry.otlp_url, resource) {
+                    Ok(mp) => {
+                        opentelemetry::global::set_meter_provider(mp.clone());
+                        guards._meter_provider = Some(mp);
+                    }
+                    Err(e) => eprintln!("Failed to initialise OTLP metric exporter: {e}"),
+                }
+            }
+
+            Some(tracing_opentelemetry::layer().with_tracer(tracer))
+        });
+
+        let ts = tracing_subscriber::registry()
+            .with(filter)
+            .with(stdout_layer)
+            .with(file_layer)
+            .with(otel_layer);
+
+        #[cfg(not(target_os = "windows"))]
+        let ts = ts.with(syslog_layer);
+
+        if let Err(e) = ts.try_init() {
+            // Best-effort cleanup: avoid leaving background exporters running when
+            // subscriber init fails.
+            if let Some(tp) = guards._tracer_provider.take() {
+                let _ = tp.shutdown();
+            }
+            if let Some(mp) = guards._meter_provider.take() {
+                let _ = mp.shutdown();
+            }
+            INITIALIZED.store(false, Ordering::SeqCst);
+            eprintln!("Failed to initialise tracing: {e}");
         }
-        if let Some(mp) = guards._meter_provider.take() {
-            let _ = mp.shutdown();
+    }
+
+    // ── wasm32 subscriber: stdout only ───────────────────────────────────────
+    #[cfg(target_arch = "wasm32")]
+    {
+        let ts = tracing_subscriber::registry()
+            .with(filter)
+            .with(stdout_layer);
+
+        if let Err(e) = ts.try_init() {
+            INITIALIZED.store(false, Ordering::SeqCst);
+            eprintln!("Failed to initialise tracing: {e}");
         }
-        INITIALIZED.store(false, Ordering::SeqCst);
-        eprintln!("Failed to initialise tracing: {e}");
     }
 
     guards
@@ -255,6 +284,7 @@ pub fn log_init(rust_log: Option<&str>) {
 ///
 /// Returns [`TelemetryGuards`] that must be kept alive for the entire process
 /// lifetime.  Call [`TelemetryGuards::shutdown`] before exit to flush buffers.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn init_tracing(default_service_name: &str) -> LoggingResult<TelemetryGuards> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 

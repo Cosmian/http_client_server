@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+#[cfg(not(target_arch = "wasm32"))]
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
 };
@@ -28,7 +29,7 @@ pub struct TracingConfig {
     pub no_log_to_stdout: bool,
 
     /// Forward logs to syslog (Unix only).
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(all(not(target_os = "windows"), not(target_arch = "wasm32")))]
     pub log_to_syslog: bool,
 
     /// Rolling daily log file: `(directory, filename_prefix)`.
@@ -49,22 +50,28 @@ pub struct TracingConfig {
 /// telemetry and release resources cleanly.
 #[derive(Default)]
 pub struct TelemetryGuards {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) tracer_provider: Option<SdkTracerProvider>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) logger_provider: Option<SdkLoggerProvider>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) meter_provider: Option<SdkMeterProvider>,
 }
 
 impl TelemetryGuards {
     /// Flush and shut down all active OTLP exporters.
     pub fn shutdown(self) {
-        if let Some(tp) = self.tracer_provider {
-            let _ = tp.shutdown();
-        }
-        if let Some(lp) = self.logger_provider {
-            let _ = lp.shutdown();
-        }
-        if let Some(mp) = self.meter_provider {
-            let _ = mp.shutdown();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(tp) = self.tracer_provider {
+                let _ = tp.shutdown();
+            }
+            if let Some(lp) = self.logger_provider {
+                let _ = lp.shutdown();
+            }
+            if let Some(mp) = self.meter_provider {
+                let _ = mp.shutdown();
+            }
         }
     }
 
@@ -73,6 +80,7 @@ impl TelemetryGuards {
     /// `env!("CARGO_PKG_NAME")`.
     ///
     /// Returns a no-op meter when OTLP is not configured.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn meter(&self, scope: &'static str) -> opentelemetry::metrics::Meter {
         opentelemetry::global::meter(scope)
     }
@@ -83,7 +91,9 @@ impl TelemetryGuards {
 /// The tracing pipeline shuts down cleanly when this value is dropped.
 #[derive(Default)]
 pub struct LoggingGuards {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) _tracer_provider: Option<SdkTracerProvider>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) _meter_provider: Option<SdkMeterProvider>,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) _rolling_appender_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
@@ -91,11 +101,14 @@ pub struct LoggingGuards {
 
 impl Drop for LoggingGuards {
     fn drop(&mut self) {
-        if let Some(tp) = self._tracer_provider.take() {
-            let _ = tp.shutdown();
-        }
-        if let Some(mp) = self._meter_provider.take() {
-            let _ = mp.shutdown();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(tp) = self._tracer_provider.take() {
+                let _ = tp.shutdown();
+            }
+            if let Some(mp) = self._meter_provider.take() {
+                let _ = mp.shutdown();
+            }
         }
     }
 }
