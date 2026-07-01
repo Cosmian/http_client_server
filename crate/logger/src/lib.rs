@@ -111,6 +111,78 @@ fn new_meter_provider(endpoint: &str, resource: Resource) -> LoggingResult<SdkMe
         .build())
 }
 
+// ── Field ordering: named fields before message ────────────────────────────
+
+/// Custom [`FormatFields`] that writes named fields **before** the message
+/// text.
+///
+/// Default tracing-subscriber output:
+/// ```text
+/// Starting the KMS server… fn_name="start_http_kms_server"
+/// ```
+/// With this formatter:
+/// ```text
+/// fn_name="start_http_kms_server" Starting the KMS server…
+/// ```
+#[derive(Debug, Default, Clone)]
+struct FieldsBeforeMessage;
+
+struct FieldsBefore {
+    /// Accumulated `key=value` pairs for non-message fields.
+    fields: String,
+    /// The event message, buffered so it can be written last.
+    message: Option<String>,
+}
+
+impl tracing::field::Visit for FieldsBefore {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        use std::fmt::Write as _;
+        if field.name() == "message" {
+            // `format_args!` implements Debug via Display: {:?} gives the raw
+            // (unquoted) message text — identical to DefaultFields behaviour.
+            self.message = Some(format!("{value:?}"));
+        } else {
+            if !self.fields.is_empty() {
+                self.fields.push(' ');
+            }
+            let _ = write!(self.fields, "{}={value:?}", field.name());
+        }
+    }
+
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if field.name() == "message" {
+            self.message = Some(value.to_owned());
+        } else {
+            // Non-message strings are printed with quotes via the &str Debug impl.
+            self.record_debug(field, &value);
+        }
+    }
+}
+
+impl<'writer> tracing_subscriber::fmt::format::FormatFields<'writer> for FieldsBeforeMessage {
+    fn format_fields<R: tracing_subscriber::field::RecordFields>(
+        &self,
+        mut writer: tracing_subscriber::fmt::format::Writer<'writer>,
+        fields: R,
+    ) -> std::fmt::Result {
+        let mut v = FieldsBefore {
+            fields: String::new(),
+            message: None,
+        };
+        fields.record(&mut v);
+        if !v.fields.is_empty() {
+            write!(writer, "{}", v.fields)?;
+        }
+        if let Some(msg) = v.message {
+            if !v.fields.is_empty() {
+                write!(writer, " ")?;
+            }
+            write!(writer, "{msg}")?;
+        }
+        Ok(())
+    }
+}
+
 // ── public API ───────────────────────────────────────────────────────────────
 
 /// Initialise the global tracing subscriber from a [`TracingConfig`].
@@ -143,7 +215,8 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
                 .with_line_number(true)
                 .with_file(true)
                 .with_ansi(config.with_ansi_colors)
-                .compact(),
+                .compact()
+                .fmt_fields(FieldsBeforeMessage),
         )
     };
 
@@ -172,6 +245,7 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
                 .with_writer(non_blocking)
                 .with_ansi(false)
                 .compact()
+                .fmt_fields(FieldsBeforeMessage)
         });
 
         // --- syslog layer (Unix only) ---
@@ -191,6 +265,7 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
                         .with_writer(syslog)
                         .with_ansi(false)
                         .compact()
+                        .fmt_fields(FieldsBeforeMessage)
                 })
         } else {
             None
@@ -291,7 +366,8 @@ pub fn init_tracing(default_service_name: &str) -> LoggingResult<TelemetryGuards
     let stdout_layer = tracing_subscriber::fmt::layer()
         .with_level(true)
         .with_target(true)
-        .compact();
+        .compact()
+        .fmt_fields(FieldsBeforeMessage);
 
     if let Ok(endpoint) = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT") {
         let service_name =

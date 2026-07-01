@@ -21,15 +21,24 @@ macro_rules! __fn_name {
         // segment to obtain the enclosing function name.
         fn _f() {}
         fn _strip(name: &str) -> &str {
-            // Remove `::_f` suffix
-            let trimmed = match name.rfind("::") {
+            // Remove `::_f` suffix added by our inner-function trick.
+            let mut s = match name.rfind("::") {
                 Some(pos) => &name[..pos],
-                None => name,
+                None => return name,
             };
-            // Take last segment
-            match trimmed.rfind("::") {
-                Some(pos) => &trimmed[pos + 2..],
-                None => trimmed,
+            // Strip trailing anonymous segments: `{{closure}}`, `{{async_fn_body}}`,
+            // etc.  These appear when the macro is called from inside an async fn
+            // body, which the compiler desugars to a closure/state-machine type.
+            while s.ends_with("}}") {
+                s = match s.rfind("::") {
+                    Some(pos) => &s[..pos],
+                    None => return s,
+                };
+            }
+            // Return the last named segment.
+            match s.rfind("::") {
+                Some(pos) => &s[pos + 2..],
+                None => s,
             }
         }
         _strip(::std::any::type_name_of_val(&_f))
