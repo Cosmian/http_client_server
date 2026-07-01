@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-07-01
+
+### 🐛 Bug Fixes
+
+- Ensure cosmian_logger build on wasm - even not used on wasm (#23)
+
 ## [0.8.0] - 2026-06-24
 
 ### 🚀 Features
