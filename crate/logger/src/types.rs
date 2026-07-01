@@ -29,7 +29,7 @@ pub struct TracingConfig {
     pub no_log_to_stdout: bool,
 
     /// Forward logs to syslog (Unix only).
-    #[cfg(all(not(target_os = "windows"), not(target_arch = "wasm32")))]
+    #[cfg(not(target_os = "windows"))]
     pub log_to_syslog: bool,
 
     /// Rolling daily log file: `(directory, filename_prefix)`.
@@ -80,7 +80,6 @@ impl TelemetryGuards {
     /// `env!("CARGO_PKG_NAME")`.
     ///
     /// Returns a no-op meter when OTLP is not configured.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn meter(&self, scope: &'static str) -> opentelemetry::metrics::Meter {
         opentelemetry::global::meter(scope)
     }
