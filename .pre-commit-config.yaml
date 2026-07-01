@@ -4,6 +4,7 @@
 # pre-commit install
 # pre-commit install --install-hooks -t commit-msg
 # pre-commit autoupdate
+# rustup target add wasm32-unknown-unknown
 #
 # (optional) Creating a virtual environment
 # ```
@@ -148,3 +149,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: wasm-build-cosmian-logger
+        name: WASM build - cosmian_logger
+        entry: cargo build --target wasm32-unknown-unknown -p cosmian_logger
+        language: system
+        pass_filenames: false
+        files: ^crate/logger/

@@ -72,6 +72,21 @@ mod macros {
         );
     }
 
+    /// __fn_name! must resolve to the enclosing async fn name, not
+    /// `{{closure}}`.
+    #[tokio::test]
+    async fn fn_name_inside_async_fn() {
+        let name = crate::__fn_name!();
+        assert!(
+            !name.contains("{{"),
+            "fn_name must not contain '{{{{' (got '{name}') — async closure stripping failed"
+        );
+        assert!(
+            name.contains("fn_name_inside_async_fn"),
+            "expected 'fn_name_inside_async_fn', got '{name}'"
+        );
+    }
+
     /// Verify that our info!/debug!/warn!/error!/trace! macros expand without
     /// panicking (they rely on a subscriber being present; if none is installed
     /// the tracing no-op path is taken instead).
