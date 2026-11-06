@@ -203,22 +203,29 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     #[allow(unused_mut)]
     let mut guards = LoggingGuards::default();
 
-    // --- stdout layer ---
-    let stdout_layer = if config.no_log_to_stdout {
-        None
-    } else {
-        Some(
-            tracing_subscriber::fmt::layer()
-                .with_level(true)
-                .with_target(true)
-                .with_thread_ids(true)
-                .with_line_number(true)
-                .with_file(true)
-                .with_ansi(config.with_ansi_colors)
-                .compact()
-                .fmt_fields(FieldsBeforeMessage),
-        )
-    };
+    // --- stdout layers: JSON or compact text, at most one of them set ---
+    let stdout_json_layer = (!config.no_log_to_stdout && config.log_json).then(|| {
+        tracing_subscriber::fmt::layer()
+            .json()
+            .flatten_event(true)
+            .with_current_span(false)
+            .with_span_list(true)
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_line_number(true)
+            .with_file(true)
+    });
+    let stdout_layer = (!config.no_log_to_stdout && !config.log_json).then(|| {
+        tracing_subscriber::fmt::layer()
+            .with_level(true)
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_line_number(true)
+            .with_file(true)
+            .with_ansi(config.with_ansi_colors)
+            .compact()
+            .fmt_fields(FieldsBeforeMessage)
+    });
 
     let filter = config
         .rust_log
@@ -303,6 +310,7 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
         let ts = tracing_subscriber::registry()
             .with(filter)
             .with(stdout_layer)
+            .with(stdout_json_layer)
             .with(file_layer)
             .with(otel_layer);
 
@@ -328,7 +336,8 @@ pub fn tracing_init(config: &TracingConfig) -> LoggingGuards {
     {
         let ts = tracing_subscriber::registry()
             .with(filter)
-            .with(stdout_layer);
+            .with(stdout_layer)
+            .with(stdout_json_layer);
 
         if let Err(e) = ts.try_init() {
             INITIALIZED.store(false, Ordering::SeqCst);

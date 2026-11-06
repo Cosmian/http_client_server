@@ -15,6 +15,7 @@ tracing-subscriber = { workspace = true, features = [
     "ansi",
     "env-filter",
     "fmt",
+    "json",
     "std"
 ] }
 

@@ -107,6 +107,26 @@ tracing_init(&TracingConfig {
 Tip: set `with_ansi_colors: true` in development and `false` in production / when stdout is
 piped to a log collector that does not interpret ANSI sequences.
 
+### JSON output
+
+`log_json: true` writes stdout as one JSON object per line, so that a log collector (e.g. Loki's
+`| json`) filters on fields rather than on text. Event fields sit at the top level and every
+enclosing span under `spans`, outermost first: a field recorded once on an entry-point span tags
+every line logged below it, however deeply nested. `with_ansi_colors` is ignored; the file and
+syslog layers stay compact text.
+
+```rust
+tracing_init(&TracingConfig {
+    service_name: "my-service".into(),
+    log_json: true,
+    ..Default::default()
+});
+```
+
+```json
+{"timestamp":"…","level":"WARN","message":"ballot rejected","target":"my_service::vote","spans":[{"election_id":"3f2a…","name":"cast"},{"name":"check"}],"filename":"src/vote.rs","line_number":142,"threadId":"ThreadId(4)"}
+```
+
 ### Syslog (Unix only)
 
 Setting `log_to_syslog: true` adds a syslog layer alongside any other layers that are active.
