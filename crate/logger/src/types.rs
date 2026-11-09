@@ -40,6 +40,11 @@ pub struct TracingConfig {
 
     /// Enable ANSI colour codes in stdout output.
     pub with_ansi_colors: bool,
+
+    /// Write stdout logs as one JSON object per line: event fields at the top
+    /// level, every enclosing span under `spans`, outermost first. Ignores
+    /// `with_ansi_colors`.
+    pub log_json: bool,
 }
 
 // ── guards ───────────────────────────────────────────────────────────────────

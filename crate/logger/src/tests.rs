@@ -32,6 +32,7 @@ fn tracing_config_default() {
     assert!(c.log_to_file.is_none());
     assert!(c.rust_log.is_none());
     assert!(!c.with_ansi_colors);
+    assert!(!c.log_json);
     #[cfg(not(target_os = "windows"))]
     assert!(!c.log_to_syslog);
 }
